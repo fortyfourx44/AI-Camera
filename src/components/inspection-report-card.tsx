@@ -5,7 +5,7 @@ import { Download, Loader2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useT } from "@/components/i18n-provider";
+import { useI18n, useT } from "@/components/i18n-provider";
 import { downloadInspectionPdf } from "@/lib/generate-inspection-pdf";
 import { cn } from "@/lib/utils";
 import type { VideoInspectionReport } from "@/lib/types";
@@ -52,6 +52,7 @@ function verdictVariant(
 
 export function InspectionReportCard({ report }: { report: VideoInspectionReport }) {
   const t = useT();
+  const { locale } = useI18n();
   const [downloading, setDownloading] = React.useState(false);
 
   const evidenceIdx =
@@ -77,7 +78,7 @@ export function InspectionReportCard({ report }: { report: VideoInspectionReport
         limitations: t("inspection.limitations"),
         conclusion: t("inspection.conclusion"),
         frame: t("inspection.frame"),
-      });
+      }, { rtl: locale === "ar" });
     } catch (err) {
       // eslint-disable-next-line no-alert
       alert(err instanceof Error ? err.message : String(err));
