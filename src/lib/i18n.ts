@@ -236,6 +236,9 @@ export type MessageKey =
   | "settings.language"
   | "settings.languageHint"
   | "settings.loading"
+  | "settings.loadError"
+  | "settings.retry"
+  | "settings.ephemeralWarning"
   // Reports list
   | "reports.title"
   | "reports.subtitle"
@@ -483,7 +486,11 @@ const en: Dict = {
   "chat.uploadAckRecordedAt": "Recorded",
   "settings.title": "AI behavior",
   "settings.subtitle":
-    "Edit exactly what the AI is instructed to watch for, how it answers questions in the chat, and how aggressively the pipeline spends tokens. All changes are stored locally in your SQLite database.",
+    "Edit what the AI watches for and how it answers in chat. On Vercel, settings are stored in /tmp and reset on cold starts.",
+  "settings.loadError": "Could not load settings.",
+  "settings.retry": "Retry",
+  "settings.ephemeralWarning":
+    "Database is unavailable or ephemeral on this host. You can still edit settings for this session, but they may not persist after a cold start.",
   "settings.badgeDirty": "Unsaved changes",
   "settings.badgeSaved": "All saved",
   "settings.savedAt": "Saved",
@@ -783,7 +790,7 @@ const ar: Dict = {
   "chat.uploadAckRecordedAt": "تاريخ التسجيل",
   "settings.title": "سلوك الذكاء الاصطناعي",
   "settings.subtitle":
-    "تحكّم بدقّة بما يراقبه الذكاء الاصطناعي، وكيف يجيب في المحادثة، ومدى تكلفة التحليل. كل التغييرات تُحفظ محلياً في قاعدة SQLite.",
+    "تحكّم بما يراقبه الذكاء الاصطناعي وكيف يجيب في المحادثة. على Vercel تُحفظ الإعدادات في /tmp وقد تُمسح عند إعادة التشغيل.",
   "settings.badgeDirty": "تغييرات غير محفوظة",
   "settings.badgeSaved": "تم الحفظ",
   "settings.savedAt": "حُفظ",
@@ -831,6 +838,10 @@ const ar: Dict = {
   "settings.languageHint":
     "تتحكّم بلغة الواجهة، وكذلك اللغة التي يستخدمها الذكاء الاصطناعي في الملخّصات والتعليل وردود المحادثة.",
   "settings.loading": "جارٍ تحميل الإعدادات…",
+  "settings.loadError": "تعذّر تحميل الإعدادات.",
+  "settings.retry": "إعادة المحاولة",
+  "settings.ephemeralWarning":
+    "قاعدة البيانات غير متاحة أو مؤقتة على هذا الخادم. يمكنك التعديل لهذه الجلسة، لكن قد لا تُحفظ التغييرات بعد إعادة التشغيل.",
   "reports.title": "تقارير المخالفات",
   "reports.subtitle":
     "جميع المعاملات التي رصدها الذكاء الاصطناعي بحسب القواعد التي فعّلتها.",

@@ -5,22 +5,37 @@ import {
   COMPLIANCE_PRESETS,
   getAppSettings,
   getDefaultSettings,
+  getSettingsDatabaseError,
+  isSettingsPersistenceAvailable,
   resetAppSettings,
   updateAppSettings,
 } from "@/lib/prompts";
 
 export const runtime = "nodejs";
+export const maxDuration = 30;
 
 function payload() {
   return {
     ...getAppSettings(),
     defaults: getDefaultSettings(),
     presets: COMPLIANCE_PRESETS,
+    persistenceAvailable: isSettingsPersistenceAvailable(),
+    databaseError: getSettingsDatabaseError(),
   };
 }
 
 export async function GET() {
-  return NextResponse.json(payload());
+  try {
+    return NextResponse.json(payload());
+  } catch (err) {
+    return NextResponse.json({
+      ...getDefaultSettings(),
+      defaults: getDefaultSettings(),
+      presets: COMPLIANCE_PRESETS,
+      persistenceAvailable: false,
+      databaseError: err instanceof Error ? err.message : String(err),
+    });
+  }
 }
 
 const patchSchema = z.object({
@@ -38,11 +53,25 @@ export async function PUT(req: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   }
-  updateAppSettings(parsed.data);
-  return NextResponse.json(payload());
+  try {
+    updateAppSettings(parsed.data);
+    return NextResponse.json(payload());
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : String(err) },
+      { status: 500 }
+    );
+  }
 }
 
 export async function DELETE() {
-  resetAppSettings();
-  return NextResponse.json(payload());
+  try {
+    resetAppSettings();
+    return NextResponse.json(payload());
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : String(err) },
+      { status: 500 }
+    );
+  }
 }

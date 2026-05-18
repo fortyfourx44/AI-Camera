@@ -37,6 +37,8 @@ interface Settings {
   motionThreshold: number;
   activePresets: string[];
   storeContext: string;
+  persistenceAvailable?: boolean;
+  databaseError?: string | null;
   defaults: {
     analysisPrompt: string;
     chatPrompt: string;
@@ -119,20 +121,39 @@ export function SettingsEditor() {
   const [saving, setSaving] = React.useState(false);
   const [savedAt, setSavedAt] = React.useState<number | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = React.useState(0);
+
+  const applySettings = React.useCallback((s: Settings) => {
+    setInitial(s);
+    setAnalysisPrompt(s.analysisPrompt);
+    setChatPrompt(s.chatPrompt);
+    setFramesPerChunk(s.framesPerChunk);
+    setMotionThreshold(s.motionThreshold);
+    setActivePresets(s.activePresets || []);
+    setStoreContext(s.storeContext || "");
+  }, []);
 
   React.useEffect(() => {
-    fetch("/api/settings")
-      .then((r) => r.json())
-      .then((s: Settings) => {
-        setInitial(s);
-        setAnalysisPrompt(s.analysisPrompt);
-        setChatPrompt(s.chatPrompt);
-        setFramesPerChunk(s.framesPerChunk);
-        setMotionThreshold(s.motionThreshold);
-        setActivePresets(s.activePresets || []);
-        setStoreContext(s.storeContext || "");
-      });
-  }, []);
+    let cancelled = false;
+    setError(null);
+    (async () => {
+      try {
+        const res = await fetch("/api/settings", { cache: "no-store" });
+        const data = (await res.json()) as Settings & { error?: string };
+        if (!res.ok) {
+          throw new Error(data.error || `HTTP ${res.status}`);
+        }
+        if (!cancelled) applySettings(data);
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : String(err));
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadAttempt, applySettings]);
 
   const isDirty =
     !!initial &&
@@ -233,14 +254,36 @@ export function SettingsEditor() {
 
   if (!initial) {
     return (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" /> {t("settings.loading")}
+      <div className="space-y-3">
+        {error ? (
+          <>
+            <p className="text-sm text-destructive">{t("settings.loadError")}</p>
+            <p className="text-xs text-muted-foreground">{error}</p>
+            <Button type="button" size="sm" variant="outline" onClick={() => setLoadAttempt((n) => n + 1)}>
+              {t("settings.retry")}
+            </Button>
+          </>
+        ) : (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> {t("settings.loading")}
+          </div>
+        )}
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
+      {initial.persistenceAvailable === false && (
+        <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-muted-foreground">
+          {t("settings.ephemeralWarning")}
+          {initial.databaseError ? (
+            <span className="mt-1 block font-mono text-[10px] text-destructive">
+              {initial.databaseError}
+            </span>
+          ) : null}
+        </div>
+      )}
       {/* Top action bar */}
       <div className="sticky top-0 z-10 -mx-6 flex items-center justify-between border-b bg-background/80 px-6 py-3 backdrop-blur">
         <div className="flex items-center gap-2">

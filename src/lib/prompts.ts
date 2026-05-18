@@ -1,4 +1,42 @@
-import { settingsRepo } from "./db";
+import { getDatabaseError, isDatabaseReady, settingsRepo } from "./db";
+
+/** In-memory fallback when SQLite is unavailable (e.g. serverless cold start). */
+const memoryStore: Record<string, string> = {};
+
+function settingsGet(key: string): string | null {
+  try {
+    if (isDatabaseReady()) return settingsRepo.get(key);
+  } catch {
+    /* use memory */
+  }
+  return memoryStore[key] ?? null;
+}
+
+function settingsSet(key: string, value: string): void {
+  memoryStore[key] = value;
+  try {
+    if (isDatabaseReady()) settingsRepo.set(key, value);
+  } catch {
+    /* memory only */
+  }
+}
+
+function settingsDelete(key: string): void {
+  delete memoryStore[key];
+  try {
+    if (isDatabaseReady()) settingsRepo.delete(key);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function isSettingsPersistenceAvailable(): boolean {
+  return isDatabaseReady();
+}
+
+export function getSettingsDatabaseError(): string | null {
+  return getDatabaseError();
+}
 
 /**
  * All configurable AI behavior lives here.
@@ -256,13 +294,13 @@ function parsePresets(raw: string | null): string[] {
 }
 
 export function getVideoInspectPrompt(): string {
-  return settingsRepo.get(K_VIDEO_INSPECT_PROMPT) ?? DEFAULT_VIDEO_INSPECT_PROMPT;
+  return settingsGet(K_VIDEO_INSPECT_PROMPT) ?? DEFAULT_VIDEO_INSPECT_PROMPT;
 }
 
 export function getAppSettings(): AppSettings {
-  const activePresets = parsePresets(settingsRepo.get(K_ACTIVE_PRESETS));
-  const storedPrompt = settingsRepo.get(K_ANALYSIS_PROMPT);
-  const storedVersion = settingsRepo.get(K_COMPOSER_VERSION);
+  const activePresets = parsePresets(settingsGet(K_ACTIVE_PRESETS));
+  const storedPrompt = settingsGet(K_ANALYSIS_PROMPT);
+  const storedVersion = settingsGet(K_COMPOSER_VERSION);
 
   // If the stored prompt was auto-composed by an older composer version,
   // silently refresh it to the latest composed prompt derived from the same
@@ -273,21 +311,21 @@ export function getAppSettings(): AppSettings {
     isAutoComposedPrompt(storedPrompt)
   ) {
     analysisPrompt = composeAnalysisPrompt(activePresets);
-    settingsRepo.set(K_ANALYSIS_PROMPT, analysisPrompt);
-    settingsRepo.set(K_COMPOSER_VERSION, CURRENT_COMPOSER_VERSION);
+    settingsSet(K_ANALYSIS_PROMPT, analysisPrompt);
+    settingsSet(K_COMPOSER_VERSION, CURRENT_COMPOSER_VERSION);
   }
 
   return {
     analysisPrompt,
-    chatPrompt: settingsRepo.get(K_CHAT_PROMPT) ?? DEFAULT_CHAT_PROMPT,
+    chatPrompt: settingsGet(K_CHAT_PROMPT) ?? DEFAULT_CHAT_PROMPT,
     framesPerChunk:
-      parseInt(settingsRepo.get(K_FRAMES_PER_CHUNK) ?? "", 10) ||
+      parseInt(settingsGet(K_FRAMES_PER_CHUNK) ?? "", 10) ||
       DEFAULT_FRAMES_PER_CHUNK,
     motionThreshold:
-      parseFloat(settingsRepo.get(K_MOTION_THRESHOLD) ?? "") ||
+      parseFloat(settingsGet(K_MOTION_THRESHOLD) ?? "") ||
       DEFAULT_MOTION_THRESHOLD,
     activePresets,
-    storeContext: settingsRepo.get(K_STORE_CONTEXT) ?? DEFAULT_STORE_CONTEXT,
+    storeContext: settingsGet(K_STORE_CONTEXT) ?? DEFAULT_STORE_CONTEXT,
   };
 }
 
@@ -304,28 +342,28 @@ export function getDefaultSettings(): AppSettings {
 
 export function updateAppSettings(patch: Partial<AppSettings>): AppSettings {
   if (patch.analysisPrompt !== undefined) {
-    settingsRepo.set(K_ANALYSIS_PROMPT, String(patch.analysisPrompt));
+    settingsSet(K_ANALYSIS_PROMPT, String(patch.analysisPrompt));
     // Whatever the user just saved is current-version by definition.
-    settingsRepo.set(K_COMPOSER_VERSION, CURRENT_COMPOSER_VERSION);
+    settingsSet(K_COMPOSER_VERSION, CURRENT_COMPOSER_VERSION);
   }
   if (patch.chatPrompt !== undefined)
-    settingsRepo.set(K_CHAT_PROMPT, String(patch.chatPrompt));
+    settingsSet(K_CHAT_PROMPT, String(patch.chatPrompt));
   if (patch.framesPerChunk !== undefined) {
     const n = Math.max(1, Math.min(20, Math.round(Number(patch.framesPerChunk))));
-    settingsRepo.set(K_FRAMES_PER_CHUNK, String(n));
+    settingsSet(K_FRAMES_PER_CHUNK, String(n));
   }
   if (patch.motionThreshold !== undefined) {
     const t = Math.max(0, Math.min(1, Number(patch.motionThreshold)));
-    settingsRepo.set(K_MOTION_THRESHOLD, String(t));
+    settingsSet(K_MOTION_THRESHOLD, String(t));
   }
   if (patch.activePresets !== undefined) {
     const valid = patch.activePresets.filter((id) =>
       COMPLIANCE_PRESETS.some((p) => p.id === id)
     );
-    settingsRepo.set(K_ACTIVE_PRESETS, JSON.stringify(valid));
+    settingsSet(K_ACTIVE_PRESETS, JSON.stringify(valid));
   }
   if (patch.storeContext !== undefined) {
-    settingsRepo.set(K_STORE_CONTEXT, String(patch.storeContext));
+    settingsSet(K_STORE_CONTEXT, String(patch.storeContext));
   }
   return getAppSettings();
 }
@@ -338,6 +376,6 @@ export function resetAppSettings(): AppSettings {
     K_MOTION_THRESHOLD,
     K_ACTIVE_PRESETS,
     K_STORE_CONTEXT,
-  ].forEach((k) => settingsRepo.delete(k));
+  ].forEach((k) => settingsDelete(k));
   return getAppSettings();
 }
