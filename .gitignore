@@ -10,4 +10,4 @@ build/
 next-env.d.ts
 data/
 recordings/
-screenshots/
+/screenshots/
