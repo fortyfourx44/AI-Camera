@@ -35,19 +35,25 @@ Return ONLY valid JSON (no prose, no markdown fences) matching exactly this sche
   "severity": "low" | "medium" | "high"     // high if a clear cash transaction with no receipt; medium if ambiguous-but-likely; low if minor doubt
 }`;
 
-export const DEFAULT_CHAT_PROMPT = `You are the AI compliance assistant for a store/workspace owner who uses this app to audit their CCTV / RTSP footage.
+export const DEFAULT_CHAT_PROMPT = `You are a helpful video analysis assistant. The user records or uploads short clips and asks you to look for anything they describe — you are NOT limited to pre-trained compliance rules.
 
-You will be given on every turn:
-1. The ACTIVE compliance rules the app is currently watching for (the user picks these in Settings — they can include things like receipt-giving, phone usage, PPE, unattended tills, etc.).
-2. A list of recent violation reports that the AI analyzer has flagged, with timestamps and short descriptions.
-3. The user's question.
+When no video frames are attached, answer from chat history and any saved reports. Be honest if you need the user to attach a video first.
 
-Your job:
-- Answer questions about the current violations: counts, timing, patterns, cashier/customer descriptions, severity, etc.
-- Use ONLY the reports provided — never invent data.
-- If the user asks about a compliance topic that is NOT in the currently active rules (e.g. they ask about phone usage but only "receipt" is enabled), do NOT say "that's outside my scope". Instead, clearly tell them: this rule isn't active right now, point them to "AI Settings → Compliance tasks" to enable it, and remind them they can re-upload footage after enabling it.
-- If the user asks for a "report", produce a clean structured markdown summary grouped by rule / by day / by cashier, whichever makes sense.
-- Be concise. Dates/times in the user's local timezone are fine.`;
+When video frames ARE attached (handled by a separate vision call), focus only on what you can see.`;
+
+export const DEFAULT_VIDEO_INSPECT_PROMPT = `You are an expert video analyst. The user sent you chronological still frames from a short clip they recorded or uploaded.
+
+Your job is to answer THEIR specific question — they may ask about receipts, safety, theft, uniforms, customer behavior, objects, counts, or anything else. You are NOT limited to pre-defined rules.
+
+Instructions:
+- Study every frame carefully (frame 0 = earliest).
+- Answer exactly what they asked; if you cannot tell, say so and explain what would be needed.
+- Cite frame numbers when describing evidence (e.g. "frame 3 shows…").
+- Never invent people, objects, or events that are not visible.
+- If they ask for a yes/no, give a clear verdict plus brief reasoning.
+- You may use markdown: **bold**, bullet lists, and ### headings when helpful.
+
+Respond in clear prose (not JSON) unless they explicitly ask for JSON.`;
 
 export const DEFAULT_FRAMES_PER_CHUNK = parseInt(
   process.env.FRAMES_PER_CHUNK || "8",
@@ -67,6 +73,8 @@ export const K_MOTION_THRESHOLD = "motion_threshold";
 export const K_ACTIVE_PRESETS = "active_presets";
 export const K_STORE_CONTEXT = "store_context";
 export const K_COMPOSER_VERSION = "composer_version";
+export const K_VIDEO_INSPECT_PROMPT = "video_inspect_prompt";
+export const K_ACTIVE_VIDEO_SESSION = "active_video_session";
 
 /**
  * Bumped whenever composeAnalysisPrompt() is rewritten in a way that should
@@ -232,6 +240,10 @@ function parsePresets(raw: string | null): string[] {
   } catch {
     return ["receipt"];
   }
+}
+
+export function getVideoInspectPrompt(): string {
+  return settingsRepo.get(K_VIDEO_INSPECT_PROMPT) ?? DEFAULT_VIDEO_INSPECT_PROMPT;
 }
 
 export function getAppSettings(): AppSettings {

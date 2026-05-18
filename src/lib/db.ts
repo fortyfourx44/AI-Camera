@@ -1,6 +1,6 @@
 import Database from "better-sqlite3";
 import { DB_PATH, ensureDirs } from "./paths";
-import type { CameraStream, ViolationReport, ChatMessage } from "./types";
+import type { CameraStream, ViolationReport, ChatMessage, VideoSession } from "./types";
 
 let _db: Database.Database | null = null;
 let _dbInitError: string | null = null;
@@ -78,6 +78,14 @@ function getDb(): Database.Database {
       value TEXT NOT NULL,
       updated_at INTEGER NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS video_sessions (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      frame_paths TEXT NOT NULL,
+      duration_seconds REAL NOT NULL,
+      created_at INTEGER NOT NULL
+    );
   `);
 
   // Lightweight migrations.
@@ -98,6 +106,13 @@ function getDb(): Database.Database {
   }
   if (!streamCols.some((c) => c.name === "source_config")) {
     _db.exec("ALTER TABLE streams ADD COLUMN source_config TEXT");
+  }
+
+  const chatCols = _db.prepare("PRAGMA table_info(chat_messages)").all() as {
+    name: string;
+  }[];
+  if (!chatCols.some((c) => c.name === "video_session_id")) {
+    _db.exec("ALTER TABLE chat_messages ADD COLUMN video_session_id TEXT");
   }
 
   // Startup sanity: no stream can actually be in an active state right now —
@@ -179,6 +194,7 @@ function rowToChat(row: Record<string, unknown>): ChatMessage {
     content: row.content as string,
     createdAt: row.created_at as number,
     reportRefs: row.report_refs ? JSON.parse(row.report_refs as string) : undefined,
+    videoSessionId: (row.video_session_id as string | null) ?? null,
   };
 }
 
@@ -264,6 +280,43 @@ export const reportsRepo = {
   },
 };
 
+// ----- Video sessions (on-demand user clips) -----
+export const videoSessionRepo = {
+  get(id: string): VideoSession | null {
+    const row = getDb()
+      .prepare("SELECT * FROM video_sessions WHERE id = ?")
+      .get(id) as Record<string, unknown> | undefined;
+    if (!row) return null;
+    let framePaths: string[] = [];
+    try {
+      framePaths = JSON.parse((row.frame_paths as string) || "[]");
+    } catch {
+      framePaths = [];
+    }
+    return {
+      id: row.id as string,
+      name: row.name as string,
+      framePaths,
+      durationSeconds: (row.duration_seconds as number) || 0,
+      createdAt: row.created_at as number,
+    };
+  },
+  insert(s: VideoSession): void {
+    getDb()
+      .prepare(
+        `INSERT INTO video_sessions (id, name, frame_paths, duration_seconds, created_at)
+         VALUES (@id, @name, @framePathsJson, @durationSeconds, @createdAt)`
+      )
+      .run({
+        ...s,
+        framePathsJson: JSON.stringify(s.framePaths),
+      });
+  },
+  delete(id: string): void {
+    getDb().prepare("DELETE FROM video_sessions WHERE id = ?").run(id);
+  },
+};
+
 // ----- Chat -----
 export const chatRepo = {
   list(limit = 200): ChatMessage[] {
@@ -275,12 +328,13 @@ export const chatRepo = {
   insert(m: ChatMessage): void {
     getDb()
       .prepare(
-        `INSERT INTO chat_messages (id, role, content, created_at, report_refs)
-         VALUES (@id, @role, @content, @createdAt, @reportRefsJson)`
+        `INSERT INTO chat_messages (id, role, content, created_at, report_refs, video_session_id)
+         VALUES (@id, @role, @content, @createdAt, @reportRefsJson, @videoSessionId)`
       )
       .run({
         ...m,
         reportRefsJson: m.reportRefs ? JSON.stringify(m.reportRefs) : null,
+        videoSessionId: m.videoSessionId ?? null,
       });
   },
   clear(): void {

@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { AnalysisResult, ViolationReport } from "./types";
-import { COMPLIANCE_PRESETS, getAppSettings } from "./prompts";
+import { COMPLIANCE_PRESETS, getAppSettings, getVideoInspectPrompt } from "./prompts";
 import { getServerLocale } from "./i18n-server";
 import type { Locale } from "./i18n";
 
@@ -207,6 +207,77 @@ function parseAnalysisJson(raw: string): AnalysisResult {
 
 function clamp01(n: number) {
   return Math.max(0, Math.min(1, n));
+}
+
+// ---- Interactive video inspection (user-defined questions) ----
+
+export async function inspectVideoFrames({
+  framePaths,
+  userQuestion,
+  videoLabel,
+  history,
+}: {
+  framePaths: string[];
+  userQuestion: string;
+  videoLabel?: string;
+  history: { role: "user" | "assistant"; content: string }[];
+}): Promise<string> {
+  if (framePaths.length === 0) {
+    return "No frames were extracted from the video. Try recording or uploading again.";
+  }
+
+  const imageBlocks = await Promise.all(framePaths.map(fileToImageBlock));
+  const content: Anthropic.ContentBlockParam[] = [];
+  imageBlocks.forEach((img, i) => {
+    content.push({ type: "text", text: `Frame ${i}:` });
+    content.push(img);
+  });
+  const label = videoLabel ? `Video: "${videoLabel}"\n\n` : "";
+  content.push({
+    type: "text",
+    text: `${label}End of frames.\n\nUser question:\n${userQuestion}`,
+  });
+
+  const locale = await getServerLocale();
+  const lang =
+    locale === "ar"
+      ? "\n\nReply in ARABIC (العربية) unless the user wrote in English."
+      : "\n\nReply in ENGLISH unless the user wrote in Arabic.";
+
+  const settings = getAppSettings();
+  const system = [
+    getVideoInspectPrompt(),
+    settings.storeContext?.trim()
+      ? `=== Extra context from the user ===\n${settings.storeContext.trim()}`
+      : "",
+    lang,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+  const prior = history
+    .slice(-6)
+    .filter((m) => m.content.trim())
+    .map(
+      (m) =>
+        ({
+          role: m.role,
+          content: m.content,
+        }) as Anthropic.MessageParam
+    );
+
+  const response = await client().messages.create({
+    model: MODEL,
+    max_tokens: 2048,
+    system,
+    messages: [...prior, { role: "user", content }],
+  });
+
+  return response.content
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("\n")
+    .trim();
 }
 
 // ---- Chat over reports (RAG-lite: include report metadata in the prompt) ----

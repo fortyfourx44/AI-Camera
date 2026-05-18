@@ -79,4 +79,16 @@ export interface ChatMessage {
   content: string;
   createdAt: number;
   reportRefs?: string[];
+  /** When set, this turn used vision on a stored video session. */
+  videoSessionId?: string | null;
+}
+
+/** On-demand video the user recorded or uploaded for interactive inspection. */
+export interface VideoSession {
+  id: string;
+  name: string;
+  /** Relative paths under screenshots/ (e.g. sessions/uuid/frame-00.jpg). */
+  framePaths: string[];
+  durationSeconds: number;
+  createdAt: number;
 }

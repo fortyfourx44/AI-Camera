@@ -143,6 +143,17 @@ export type MessageKey =
   | "chat.suggestion2"
   | "chat.suggestion3"
   | "chat.suggestion4"
+  | "chat.needVideo"
+  | "chat.sessionReady"
+  | "video.title"
+  | "video.subtitle"
+  | "video.upload"
+  | "video.record"
+  | "video.stop"
+  | "video.clear"
+  | "video.emptyPreview"
+  | "video.framesReady"
+  | "video.cameraDenied"
   | "chat.verdictNoActivity"
   | "chat.verdictCompliant"
   | "chat.verdictViolation"
@@ -246,7 +257,7 @@ type Dict = Record<MessageKey, string>;
 
 const en: Dict = {
   "app.title": "AI IP-Cam",
-  "app.tagline": "Compliance auditor for store CCTV",
+  "app.tagline": "Record a clip, then ask the AI anything you want it to look for",
   "nav.reports": "Reports",
   "nav.settings": "AI Settings",
   "nav.dashboard": "Dashboard",
@@ -367,14 +378,16 @@ const en: Dict = {
   "violations.severityHigh": "HIGH",
   "violations.severityMedium": "MEDIUM",
   "violations.severityLow": "LOW",
-  "chat.title": "AI Auditor",
+  "chat.title": "Ask about your video",
   "chat.subtitle":
-    "Ask Claude about your footage, or drop a video file to analyze on demand.",
+    "Record or upload a clip on the left, then describe what you want me to look for — anything visible in the footage.",
+  "chat.needVideo": "Record or upload a video first (left panel), then ask your question here.",
+  "chat.sessionReady": "Clip loaded",
   "chat.watching": "Watching for:",
   "chat.noRules": "no rules active — click to configure",
   "chat.edit": "edit →",
   "chat.placeholder":
-    "Ask about violations, request a report, or attach a video to analyze…",
+    "e.g. Did the cashier hand a receipt? Is anyone wearing a helmet? Count people at the counter…",
   "chat.you": "You",
   "chat.claude": "Claude",
   "chat.thinking": "Claude is thinking…",
@@ -382,13 +395,22 @@ const en: Dict = {
     "Analyzing video — this may take a few minutes for long footage…",
   "chat.clear": "Clear chat",
   "chat.clearConfirm": "Clear chat history?",
-  "chat.welcomeTitle": "Hi — I'm your AI compliance auditor.",
+  "chat.welcomeTitle": "What should I look for in your clip?",
   "chat.welcomeBody":
-    "Add a camera or upload a video. I'll watch every transaction and flag any time the cashier didn't hand a receipt.",
-  "chat.suggestion1": "How many violations were caught today?",
-  "chat.suggestion2": "Generate a daily compliance report.",
-  "chat.suggestion3": "Which cashier description appears most often in violations?",
-  "chat.suggestion4": "What times of day are most violations happening?",
+    "I can check for anything you describe — receipts, safety gear, phones, theft, cleanliness, headcount, and more. No fixed rule list required.",
+  "chat.suggestion1": "Did the cashier hand a printed receipt to the customer?",
+  "chat.suggestion2": "Is anyone using a phone behind the counter?",
+  "chat.suggestion3": "Describe what each person is wearing and doing.",
+  "chat.suggestion4": "Flag anything that looks unsafe or suspicious.",
+  "video.title": "Your clip",
+  "video.subtitle": "Record with your camera or upload a file — analysis runs only when you ask in chat.",
+  "video.upload": "Upload video",
+  "video.record": "Record",
+  "video.stop": "Stop",
+  "video.clear": "Clear clip",
+  "video.emptyPreview": "Record or upload to begin",
+  "video.framesReady": "frames ready",
+  "video.cameraDenied": "Camera access was denied. Allow camera permission or upload a file instead.",
   "chat.verdictNoActivity": "No activity",
   "chat.verdictCompliant": "Compliant",
   "chat.verdictViolation": "Violation",
@@ -510,7 +532,7 @@ const en: Dict = {
 
 const ar: Dict = {
   "app.title": "AI IP-Cam",
-  "app.tagline": "مدقّق الامتثال بالذكاء الاصطناعي لكاميرات المراقبة",
+  "app.tagline": "سجّل مقطعاً واسأل الذكاء الاصطناعي عما تريد أن يبحث عنه",
   "nav.reports": "التقارير",
   "nav.settings": "إعدادات الذكاء الاصطناعي",
   "nav.dashboard": "لوحة التحكم",
@@ -632,14 +654,16 @@ const ar: Dict = {
   "violations.severityHigh": "مرتفعة",
   "violations.severityMedium": "متوسطة",
   "violations.severityLow": "منخفضة",
-  "chat.title": "المدقّق الذكي",
+  "chat.title": "اسأل عن مقطعك",
   "chat.subtitle":
-    "اسأل كلود عن تسجيلاتك، أو أرفق ملف فيديو ليحلّله فوراً.",
+    "سجّل أو ارفع مقطعاً من اليسار، ثم صف ما تريد أن أبحث عنه — أي شيء يظهر في اللقطات.",
+  "chat.needVideo": "سجّل أو ارفع فيديو أولاً (اللوحة اليسرى)، ثم اكتب سؤالك هنا.",
+  "chat.sessionReady": "المقطع جاهز",
   "chat.watching": "نراقب:",
   "chat.noRules": "لا توجد قواعد مفعّلة — اضغط للإعداد",
   "chat.edit": "تعديل ←",
   "chat.placeholder":
-    "اسأل عن المخالفات، اطلب تقريراً، أو أرفق فيديو للتحليل…",
+    "مثال: هل سلّم الكاشير فاتورة؟ هل يرتدي أحد خوذة؟ عد الأشخاص عند الكاونتر…",
   "chat.you": "أنت",
   "chat.claude": "كلود",
   "chat.thinking": "كلود يفكّر…",
@@ -647,13 +671,22 @@ const ar: Dict = {
     "جارٍ تحليل الفيديو — قد يستغرق الأمر بضع دقائق للفيديوهات الطويلة…",
   "chat.clear": "مسح المحادثة",
   "chat.clearConfirm": "هل تريد مسح المحادثة؟",
-  "chat.welcomeTitle": "مرحباً — أنا مدقّق الامتثال الذكي الخاص بك.",
+  "chat.welcomeTitle": "ماذا تريد أن أبحث عنه في مقطعك؟",
   "chat.welcomeBody":
-    "أضف كاميرا أو ارفع فيديو. سأراقب كل معاملة وأرصد أي مخالفة للقواعد التي اخترتها.",
-  "chat.suggestion1": "كم عدد المخالفات اليوم؟",
-  "chat.suggestion2": "أنشئ تقرير امتثال يومي.",
-  "chat.suggestion3": "أي وصف للكاشير يتكرر في المخالفات؟",
-  "chat.suggestion4": "ما هي أوقات اليوم الأكثر عرضة للمخالفات؟",
+    "يمكنني فحص أي شيء تصفه — فواتير، معدات سلامة، هواتف، سرقة، نظافة، عدّ الأشخاص، وغير ذلك. لا حاجة لقائمة قواعد جاهزة.",
+  "chat.suggestion1": "هل سلّم الكاشير فاتورة مطبوعة للعميل؟",
+  "chat.suggestion2": "هل يستخدم أحد هاتفاً خلف الكاونتر؟",
+  "chat.suggestion3": "صف ملابس وحركة كل شخص في المشهد.",
+  "chat.suggestion4": "أشر إلى أي شيء يبدو غير آمن أو مريباً.",
+  "video.title": "مقطعك",
+  "video.subtitle": "سجّل بالكاميرا أو ارفع ملفاً — التحليل يعمل فقط عندما تسأل في المحادثة.",
+  "video.upload": "رفع فيديو",
+  "video.record": "تسجيل",
+  "video.stop": "إيقاف",
+  "video.clear": "مسح المقطع",
+  "video.emptyPreview": "سجّل أو ارفع للبدء",
+  "video.framesReady": "إطار جاهز",
+  "video.cameraDenied": "تم رفض الوصول للكاميرا. اسمح بالإذن أو ارفع ملفاً.",
   "chat.verdictNoActivity": "لا نشاط",
   "chat.verdictCompliant": "مطابق",
   "chat.verdictViolation": "مخالفة",

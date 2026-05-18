@@ -18,7 +18,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { useT } from "@/components/i18n-provider";
 import { cn, formatDateTime } from "@/lib/utils";
-import type { ChatMessage } from "@/lib/types";
+import type { ChatMessage, VideoSession } from "@/lib/types";
 
 interface LocalChatMessage extends ChatMessage {
   uploadSummary?: UploadSummary;
@@ -187,7 +187,13 @@ function MarkdownText({ children }: { children: string }) {
   return <>{out}</>;
 }
 
-export function ChatPanel() {
+export function ChatPanel({
+  session,
+  onSessionChange,
+}: {
+  session: VideoSession | null;
+  onSessionChange: (s: VideoSession | null) => void;
+}) {
   const t = useT();
   const SUGGESTIONS = [
     t("chat.suggestion1"),
@@ -198,154 +204,44 @@ export function ChatPanel() {
   const [messages, setMessages] = React.useState<LocalChatMessage[]>([]);
   const [input, setInput] = React.useState("");
   const [files, setFiles] = React.useState<FileAttachment[]>([]);
-  const [pendingVideo, setPendingVideo] = React.useState<File | null>(null);
-  const [videoStartTime, setVideoStartTime] = React.useState<string>(""); // local-input format
-  const [videoStartSource, setVideoStartSource] = React.useState<string>("");
   const [sending, setSending] = React.useState(false);
-  const [uploading, setUploading] = React.useState(false);
-  const [activeRules, setActiveRules] = React.useState<
-    { id: string; label: string }[]
-  >([]);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const scrollerRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     fetch("/api/chat")
       .then((r) => r.json())
-      .then((d) => setMessages(d.messages || []))
+      .then((d) => {
+        setMessages(d.messages || []);
+        if (d.session) onSessionChange(d.session);
+      })
       .catch(() => {});
-    const loadRules = () =>
-      fetch("/api/system")
-        .then((r) => r.json())
-        .then((d) => setActiveRules(d.activeRules || []))
-        .catch(() => {});
-    loadRules();
-    const id = setInterval(loadRules, 5000);
-    return () => clearInterval(id);
-  }, []);
+  }, [onSessionChange]);
 
   React.useEffect(() => {
     scrollerRef.current?.scrollTo({
       top: scrollerRef.current.scrollHeight,
       behavior: "smooth",
     });
-  }, [messages, sending, uploading]);
-
-  function handlePickVideo() {
-    fileInputRef.current?.click();
-  }
-
-  function onFileChosen(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    setPendingVideo(f);
-    setFiles([
-      {
-        id: f.name,
-        name: f.name,
-        icon: <Video className="h-4 w-4 text-primary" />,
-      },
-    ]);
-    // Auto-detect the video's recording time from the filename; otherwise
-    // leave it blank so the user can fill it in.
-    const detected = clientParseFilenameTimestamp(f.name);
-    if (detected) {
-      setVideoStartTime(dateToLocalInputValue(detected));
-      setVideoStartSource("filename");
-    } else if (f.lastModified) {
-      setVideoStartTime(dateToLocalInputValue(new Date(f.lastModified)));
-      setVideoStartSource("mtime");
-    } else {
-      setVideoStartTime("");
-      setVideoStartSource("");
-    }
-    e.target.value = "";
-  }
+  }, [messages, sending]);
 
   function removeFile(id: string | number) {
     setFiles((prev) => prev.filter((f) => f.id !== id));
-    if (id === pendingVideo?.name) {
-      setPendingVideo(null);
-      setVideoStartTime("");
-      setVideoStartSource("");
-    }
   }
 
   async function send() {
     const text = input.trim();
-    const hasVideo = !!pendingVideo;
-    if (!text && !hasVideo) return;
+    if (!text) return;
 
-    if (hasVideo && pendingVideo) {
-      setUploading(true);
-      const localMsg: LocalChatMessage = {
-        id: crypto.randomUUID(),
-        role: "user",
-        content: text || `Analyze this video: ${pendingVideo.name}`,
-        createdAt: Date.now(),
-      };
-      setMessages((m) => [...m, localMsg]);
-      setInput("");
-      setFiles([]);
-      const videoToSend = pendingVideo;
-      const startTimeToSend = videoStartTime;
-      setPendingVideo(null);
-      setVideoStartTime("");
-      setVideoStartSource("");
-      try {
-        const fd = new FormData();
-        fd.append("file", videoToSend);
-        fd.append("name", videoToSend.name);
-        if (startTimeToSend) {
-          // Convert local datetime to ISO (server will receive as UTC).
-          const iso = new Date(startTimeToSend).toISOString();
-          fd.append("videoStartTime", iso);
-        }
-        const res = await fetch("/api/analyze-upload", { method: "POST", body: fd });
-        const data = await res.json();
-        if (!res.ok) {
-          setMessages((m) => [
-            ...m,
-            {
-              id: crypto.randomUUID(),
-              role: "assistant",
-              content: `${t("chat.uploadError")}: ${data.error || "unknown error"}`,
-              createdAt: Date.now(),
-            },
-          ]);
-        } else {
-          const duration = `${Math.max(1, Math.round(data.totalSeconds / 60))} min`;
-          const recordedLine = data.videoStartTime
-            ? `\n${t("chat.uploadAckRecordedAt")}: ${new Date(
-                data.videoStartTime
-              ).toLocaleString()}`
-            : "";
-          const ack: LocalChatMessage = {
-            id: crypto.randomUUID(),
-            role: "assistant",
-            content: `${t("chat.uploadAckDone")} **${videoToSend.name}**. ${t(
-              "chat.uploadAckProcessed"
-            )} **${data.chunksProcessed}** ${t("chat.uploadAckChunks")} (~${duration}). ${t(
-              "chat.uploadAckViolations"
-            )} **${data.violations}**.${recordedLine}`,
-            createdAt: Date.now(),
-            uploadSummary: data,
-          };
-          setMessages((m) => [...m, ack]);
-        }
-      } catch (err) {
-        setMessages((m) => [
-          ...m,
-          {
-            id: crypto.randomUUID(),
-            role: "assistant",
-            content: `Upload failed: ${err instanceof Error ? err.message : String(err)}`,
-            createdAt: Date.now(),
-          },
-        ]);
-      } finally {
-        setUploading(false);
-      }
+    if (!session) {
+      setMessages((m) => [
+        ...m,
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: t("chat.needVideo"),
+          createdAt: Date.now(),
+        },
+      ]);
       return;
     }
 
@@ -362,9 +258,10 @@ export function ChatPanel() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({ message: text, sessionId: session.id }),
       });
       const data = await res.json();
+      if (data.session) onSessionChange(data.session);
       if (data.assistant) {
         setMessages((m) => [...m.filter((x) => x.id !== localUser.id), data.user, data.assistant]);
       } else {
@@ -387,6 +284,7 @@ export function ChatPanel() {
     if (!confirm(t("chat.clearConfirm"))) return;
     await fetch("/api/chat", { method: "DELETE" });
     setMessages([]);
+    onSessionChange(null);
   }
 
   return (
@@ -408,28 +306,14 @@ export function ChatPanel() {
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
-        <div className="flex flex-wrap items-center gap-1.5 pt-1">
-          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-            {t("chat.watching")}
-          </span>
-          {activeRules.length === 0 ? (
-            <a href="/settings" className="text-xs text-warning hover:underline">
-              {t("chat.noRules")}
-            </a>
-          ) : (
-            activeRules.map((r) => (
-              <Badge key={r.id} variant="secondary" className="h-5 text-[10px]">
-                {r.label}
-              </Badge>
-            ))
-          )}
-          <a
-            href="/settings"
-            className="ms-auto text-[10px] text-muted-foreground hover:text-foreground hover:underline"
-          >
-            {t("chat.edit")}
-          </a>
-        </div>
+        {session ? (
+          <p className="text-xs text-muted-foreground">
+            {t("chat.sessionReady")}:{" "}
+            <span className="font-medium text-foreground">{session.name}</span>
+          </p>
+        ) : (
+          <p className="text-xs text-warning">{t("chat.needVideo")}</p>
+        )}
       </div>
 
       <ScrollArea className="flex-1">
@@ -443,81 +327,22 @@ export function ChatPanel() {
           {messages.map((m) => (
             <Message key={m.id} message={m} />
           ))}
-          {(sending || uploading) && (
+          {sending && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              {uploading ? t("chat.analyzing") : t("chat.thinking")}
+              {t("chat.thinking")}
             </div>
           )}
         </div>
       </ScrollArea>
 
       <div className="space-y-2 border-t bg-background/40 p-4">
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="video/*"
-          className="hidden"
-          onChange={onFileChosen}
-        />
-        {pendingVideo && (
-          <div className="flex flex-wrap items-center gap-2 rounded-md border border-dashed bg-muted/30 p-2 text-xs">
-            <label
-              htmlFor="video-start-time"
-              className="text-muted-foreground"
-            >
-              {t("chat.recordedAt")}
-            </label>
-            <input
-              id="video-start-time"
-              type="datetime-local"
-              value={videoStartTime}
-              onChange={(e) => {
-                setVideoStartTime(e.target.value);
-                setVideoStartSource("user");
-              }}
-              className="rounded border bg-background px-2 py-1 text-xs"
-            />
-            {videoStartSource && (
-              <span className="text-[10px] uppercase text-muted-foreground">
-                {videoStartSource === "filename"
-                  ? t("chat.recordedFromFilename")
-                  : videoStartSource === "mtime"
-                  ? t("chat.recordedFromMtime")
-                  : videoStartSource === "user"
-                  ? t("chat.recordedFromUser")
-                  : ""}
-              </span>
-            )}
-          </div>
-        )}
         <AdvancedChatInput
-          isSending={sending || uploading}
+          isSending={sending}
           files={files}
           onFileRemove={removeFile}
           onSend={send}
-          actionIcons={[
-            <Button
-              key="video"
-              variant="ghost"
-              size="icon"
-              aria-label={t("chat.attachVideo")}
-              onClick={handlePickVideo}
-              title={t("chat.attachVideo")}
-            >
-              <Paperclip className="h-4 w-4 text-muted-foreground" />
-            </Button>,
-            <Button
-              key="report"
-              variant="ghost"
-              size="icon"
-              aria-label={t("chat.reportShortcut")}
-              onClick={() => setInput(t("chat.suggestion2"))}
-              title={t("chat.reportShortcut")}
-            >
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            </Button>,
-          ]}
+          actionIcons={[]}
           textareaProps={{
             value: input,
             placeholder: t("chat.placeholder"),

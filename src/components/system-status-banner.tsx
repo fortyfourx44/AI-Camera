@@ -32,8 +32,7 @@ export function SystemStatusBanner() {
 
   const onServerless = !!status.serverless;
   const dbOk = status.database !== false;
-  const ok =
-    status.claude && dbOk && !onServerless && status.ffmpeg;
+  const ok = status.claude && dbOk;
 
   return (
     <div
@@ -74,6 +73,9 @@ export function SystemStatusBanner() {
               {onServerless && <li>{t("system.serverlessWarning")}</li>}
               {!onServerless && !status.ffmpeg && (
                 <li>{t("system.ffmpegMissing")}</li>
+              )}
+              {onServerless && status.claude && dbOk && (
+                <li className="text-xs opacity-90">{t("video.subtitle")}</li>
               )}
             </ul>
           )}
