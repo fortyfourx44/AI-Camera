@@ -29,6 +29,8 @@ export type MessageKey =
   | "system.model"
   | "system.claudeMissing"
   | "system.ffmpegMissing"
+  | "system.serverlessWarning"
+  | "system.databaseError"
   // Cameras panel
   | "cameras.title"
   | "cameras.subtitle"
@@ -258,6 +260,9 @@ const en: Dict = {
     "Anthropic API key missing. Add ANTHROPIC_API_KEY to .env.local and restart the dev server.",
   "system.ffmpegMissing":
     "ffmpeg not found. Install it (brew install ffmpeg on macOS) and restart.",
+  "system.serverlessWarning":
+    "Running on Vercel serverless: live RTSP/Hik-Connect monitoring needs a VPS with ffmpeg. Data in /tmp resets on cold starts. Add ANTHROPIC_API_KEY in Vercel env vars.",
+  "system.databaseError": "Database unavailable on this host.",
   "cameras.title": "Cameras",
   "cameras.subtitle": "RTSP streams currently watched by the AI auditor.",
   "cameras.add": "Add",
@@ -519,6 +524,9 @@ const ar: Dict = {
     "مفتاح Anthropic API غير موجود. أضِف ANTHROPIC_API_KEY إلى الملف .env.local ثم أعد تشغيل الخادم.",
   "system.ffmpegMissing":
     "ffmpeg غير مثبّت. ثبّته (brew install ffmpeg على الماك) ثم أعد التشغيل.",
+  "system.serverlessWarning":
+    "يعمل على Vercel بدون خادم دائم: المراقبة المباشرة (RTSP/Hik-Connect) تحتاج VPS مع ffmpeg. البيانات في /tmp تُمسح عند إعادة التشغيل. أضِف ANTHROPIC_API_KEY في متغيرات Vercel.",
+  "system.databaseError": "قاعدة البيانات غير متاحة على هذا المضيف.",
   "cameras.title": "الكاميرات",
   "cameras.subtitle": "روابط RTSP التي يراقبها المدقّق الذكي حالياً.",
   "cameras.add": "إضافة",

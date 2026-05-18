@@ -1,9 +1,32 @@
+import fs from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+
+import { ffmpegAvailable } from "./ffmpeg";
 
 const execFileP = promisify(execFile);
 
 const FFMPEG = process.env.FFMPEG_PATH || "ffmpeg";
+
+/** Crude motion proxy when ffmpeg is unavailable (e.g. Vercel serverless). */
+async function chunkHasMovementWithoutFfmpeg(
+  framePaths: string[]
+): Promise<{ moved: boolean; minPsnr: number; maxPsnr: number }> {
+  if (framePaths.length < 2) return { moved: true, minPsnr: 0, maxPsnr: 0 };
+  const sizes: number[] = [];
+  for (const p of framePaths) {
+    try {
+      const st = await fs.stat(p);
+      sizes.push(st.size);
+    } catch {
+      return { moved: true, minPsnr: 0, maxPsnr: 0 };
+    }
+  }
+  const min = Math.min(...sizes);
+  const max = Math.max(...sizes);
+  const moved = max - min > 1500;
+  return { moved, minPsnr: min, maxPsnr: max };
+}
 
 /**
  * Cheap inter-frame similarity gate for the snapshot pipeline.
@@ -84,6 +107,9 @@ export async function chunkHasMovement(
   identicalThreshold = IDENTICAL_PSNR_DB
 ): Promise<{ moved: boolean; minPsnr: number; maxPsnr: number }> {
   if (framePaths.length < 2) return { moved: true, minPsnr: 0, maxPsnr: 0 };
+  if (!(await ffmpegAvailable())) {
+    return chunkHasMovementWithoutFfmpeg(framePaths);
+  }
   let minPsnr = Number.POSITIVE_INFINITY;
   let maxPsnr = 0;
   for (let i = 1; i < framePaths.length; i++) {

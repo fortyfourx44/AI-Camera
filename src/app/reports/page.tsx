@@ -11,7 +11,12 @@ export const dynamic = "force-dynamic";
 
 export default async function ReportsPage() {
   const { t } = await getServerT();
-  const reports = reportsRepo.list(500);
+  let reports: ReturnType<typeof reportsRepo.list> = [];
+  try {
+    reports = reportsRepo.list(500);
+  } catch {
+    reports = [];
+  }
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-6">

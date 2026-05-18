@@ -12,6 +12,9 @@ interface SystemStatus {
   model: string;
   streams: number;
   reports: number;
+  serverless?: boolean;
+  database?: boolean;
+  databaseError?: string | null;
 }
 
 export function SystemStatusBanner() {
@@ -26,7 +29,11 @@ export function SystemStatusBanner() {
   }, []);
 
   if (!status) return null;
-  const ok = status.ffmpeg && status.claude;
+
+  const onServerless = !!status.serverless;
+  const dbOk = status.database !== false;
+  const ok =
+    status.claude && dbOk && !onServerless && status.ffmpeg;
 
   return (
     <div
@@ -54,8 +61,28 @@ export function SystemStatusBanner() {
           ) : (
             <ul className="space-y-0.5">
               {!status.claude && <li>{t("system.claudeMissing")}</li>}
-              {!status.ffmpeg && <li>{t("system.ffmpegMissing")}</li>}
+              {!dbOk && (
+                <li>
+                  {t("system.databaseError")}
+                  {status.databaseError ? (
+                    <span className="ms-1 font-mono text-xs opacity-80">
+                      ({status.databaseError})
+                    </span>
+                  ) : null}
+                </li>
+              )}
+              {onServerless && <li>{t("system.serverlessWarning")}</li>}
+              {!onServerless && !status.ffmpeg && (
+                <li>{t("system.ffmpegMissing")}</li>
+              )}
             </ul>
+          )}
+          {onServerless && status.claude && dbOk && (
+            <p className="text-xs opacity-90">
+              {t("system.model")}:{" "}
+              <code className="text-xs">{status.model}</code> · {status.streams}{" "}
+              {t("system.streams")} · {status.reports} {t("system.violations")}
+            </p>
           )}
         </div>
       </div>

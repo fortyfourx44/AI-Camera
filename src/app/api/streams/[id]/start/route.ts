@@ -2,17 +2,31 @@ import { NextRequest, NextResponse } from "next/server";
 import { startStreamAnalysis } from "@/lib/analyzer";
 import { ffmpegAvailable } from "@/lib/ffmpeg";
 import { isClaudeConfigured } from "@/lib/claude";
+import { streamsRepo } from "@/lib/db";
+import { isServerlessDeployment } from "@/lib/runtime";
+import { getServerlessLiveMonitoringMessage } from "@/lib/serverless-guard";
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   if (!isClaudeConfigured()) {
     return NextResponse.json(
-      { error: "ANTHROPIC_API_KEY not set. Add it to .env.local and restart." },
+      {
+        error:
+          "ANTHROPIC_API_KEY not set. Add it in Vercel Environment Variables or .env.local.",
+      },
       { status: 400 }
     );
   }
-  if (!(await ffmpegAvailable())) {
+  if (isServerlessDeployment()) {
+    return NextResponse.json(
+      { error: getServerlessLiveMonitoringMessage() },
+      { status: 503 }
+    );
+  }
+  const { id } = await ctx.params;
+  const stream = streamsRepo.get(id);
+  if (stream?.sourceType !== "hikconnect" && !(await ffmpegAvailable())) {
     return NextResponse.json(
       {
         error:
@@ -21,7 +35,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       { status: 400 }
     );
   }
-  const { id } = await ctx.params;
   let durationMinutes = 0;
   try {
     const body = (await req.json().catch(() => null)) as {

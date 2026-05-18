@@ -3,11 +3,35 @@ import { DB_PATH, ensureDirs } from "./paths";
 import type { CameraStream, ViolationReport, ChatMessage } from "./types";
 
 let _db: Database.Database | null = null;
+let _dbInitError: string | null = null;
+
+/** Last database initialization failure (e.g. on read-only serverless FS). */
+export function getDatabaseError(): string | null {
+  return _dbInitError;
+}
+
+export function isDatabaseReady(): boolean {
+  try {
+    getDb();
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 function getDb(): Database.Database {
   if (_db) return _db;
-  ensureDirs();
-  _db = new Database(DB_PATH);
+  if (_dbInitError) {
+    throw new Error(_dbInitError);
+  }
+  try {
+    ensureDirs();
+    _db = new Database(DB_PATH);
+  } catch (err) {
+    _dbInitError =
+      err instanceof Error ? err.message : "Database initialization failed.";
+    throw new Error(_dbInitError);
+  }
   _db.pragma("journal_mode = WAL");
   _db.exec(`
     CREATE TABLE IF NOT EXISTS streams (

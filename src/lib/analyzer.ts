@@ -18,6 +18,7 @@ import { RECORDINGS_DIR, SCREENSHOTS_DIR, ensureDirs } from "./paths";
 import type { ViolationReport, AnalysisResult } from "./types";
 import { formatTimestamp } from "./utils";
 import { getAppSettings, DEFAULT_CHUNK_SECONDS } from "./prompts";
+import { assertLiveMonitoringAllowed } from "./serverless-guard";
 
 const CHUNK_SECONDS = DEFAULT_CHUNK_SECONDS;
 
@@ -75,6 +76,8 @@ export async function startStreamAnalysis(
 
   const stream = streamsRepo.get(streamId);
   if (!stream) throw new Error(`Stream ${streamId} not found.`);
+
+  assertLiveMonitoringAllowed(stream);
 
   // Cloud cameras don't have a real RTSP URL — we fan out to a separate
   // module that polls JPEG snapshots from the Hik-Connect cloud on a

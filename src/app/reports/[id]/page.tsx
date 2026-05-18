@@ -18,7 +18,12 @@ export default async function ReportDetail({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const report = reportsRepo.get(id);
+  let report: ReturnType<typeof reportsRepo.get> = null;
+  try {
+    report = reportsRepo.get(id);
+  } catch {
+    report = null;
+  }
   if (!report) notFound();
   const { t } = await getServerT();
 

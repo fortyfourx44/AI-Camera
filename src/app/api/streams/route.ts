@@ -13,11 +13,21 @@ const createSchema = z.object({
 });
 
 export async function GET() {
-  // Hide synthetic upload "streams" that old versions may have inserted.
-  const streams = streamsRepo
-    .list()
-    .filter((s) => !s.rtspUrl.startsWith("file://"));
-  return NextResponse.json({ streams });
+  try {
+    // Hide synthetic upload "streams" that old versions may have inserted.
+    const streams = streamsRepo
+      .list()
+      .filter((s) => !s.rtspUrl.startsWith("file://"));
+    return NextResponse.json({ streams });
+  } catch (err) {
+    return NextResponse.json(
+      {
+        streams: [],
+        error: err instanceof Error ? err.message : "Database unavailable",
+      },
+      { status: 503 }
+    );
+  }
 }
 
 export async function POST(req: NextRequest) {

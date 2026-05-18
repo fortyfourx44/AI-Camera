@@ -20,8 +20,11 @@ export async function POST(req: NextRequest) {
   }
   if (!(await ffmpegAvailable())) {
     return NextResponse.json(
-      { error: "ffmpeg not available. Install ffmpeg and restart." },
-      { status: 400 }
+      {
+        error:
+          "ffmpeg not available on this host. Video upload analysis requires a VPS or local machine with ffmpeg installed.",
+      },
+      { status: 503 }
     );
   }
 
