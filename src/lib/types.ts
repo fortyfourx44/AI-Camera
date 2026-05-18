@@ -153,6 +153,8 @@ export interface VideoInspectionReport {
   videos?: Array<{ name: string; durationSeconds: number; frameCount: number }>;
   /** Multi-video evidence (maps to flat list via batch manifest). */
   evidenceRefs?: EvidenceRef[];
+  /** Flat index → data URL, embedded at analysis time (required on Vercel). */
+  frameDataUrls?: Record<string, string>;
 }
 
 /** @deprecated Use VideoBatch — kept for migration. */

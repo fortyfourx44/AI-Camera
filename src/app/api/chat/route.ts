@@ -8,6 +8,7 @@ import {
   inspectVideoFrames,
   isClaudeConfigured,
 } from "@/lib/claude";
+import { embedInspectionFrameDataUrls } from "@/lib/embed-inspection-images";
 import {
   batchSummaryLabel,
   buildFlatFrameManifest,
@@ -100,7 +101,7 @@ export async function POST(req: NextRequest) {
         history,
       });
       assistantText = result.content;
-      inspection = result.inspection;
+      inspection = await embedInspectionFrameDataUrls(result.inspection, manifest);
     } else {
       const reports = reportsRepo.list(50);
       assistantText = await chatWithReports({

@@ -17,6 +17,13 @@ function screenshotUrl(relative: string): string {
   return `/api/screenshots/${sub.map(encodeURIComponent).join("/")}`;
 }
 
+function frameImageSrc(report: VideoInspectionReport, flatIndex: number): string {
+  const embedded = report.frameDataUrls?.[String(flatIndex)];
+  if (embedded) return embedded;
+  const rel = report.framePaths[flatIndex];
+  return rel ? screenshotUrl(rel) : "";
+}
+
 function frameCaption(report: VideoInspectionReport, idx: number): string {
   const label = report.frameLabels?.[idx];
   if (label) return label;
@@ -176,12 +183,12 @@ export function InspectionReportCard({ report }: { report: VideoInspectionReport
           </h4>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {evidenceIdx.map((idx) => {
-              const rel = report.framePaths[idx];
-              if (!rel) return null;
+              const src = frameImageSrc(report, idx);
+              if (!src) return null;
               return (
                 <a
-                  key={`${rel}-${idx}`}
-                  href={screenshotUrl(rel)}
+                  key={`${idx}-${src.slice(0, 32)}`}
+                  href={src}
                   target="_blank"
                   rel="noreferrer"
                   className={cn(
@@ -190,7 +197,7 @@ export function InspectionReportCard({ report }: { report: VideoInspectionReport
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={screenshotUrl(rel)}
+                    src={src}
                     alt={`${t("inspection.frame")} ${idx}`}
                     className="aspect-video w-full object-cover transition-transform group-hover:scale-[1.02]"
                   />

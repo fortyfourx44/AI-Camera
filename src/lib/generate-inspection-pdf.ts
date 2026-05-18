@@ -13,15 +13,20 @@ async function loadImageDataUrl(
   url: string
 ): Promise<{ dataUrl: string; w: number; h: number } | null> {
   try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
+    let dataUrl: string;
+    if (url.startsWith("data:")) {
+      dataUrl = url;
+    } else {
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
     const dims = await new Promise<{ w: number; h: number }>((resolve) => {
       const img = new Image();
       img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
@@ -159,9 +164,11 @@ export async function downloadInspectionPdf(
     let col = 0;
     for (const idx of evidenceIdx) {
       const rel = report.framePaths[idx];
-      if (!rel) continue;
+      const src =
+        report.frameDataUrls?.[String(idx)] ?? (rel ? screenshotUrl(rel) : "");
+      if (!src) continue;
       addPageIfNeeded(imgH + 10);
-      const img = await loadImageDataUrl(screenshotUrl(rel));
+      const img = await loadImageDataUrl(src);
       const x = margin + col * (colW + 4);
       doc.setFontSize(8);
       const cap = report.frameLabels?.[idx] || `${labels.frame} #${idx}`;
