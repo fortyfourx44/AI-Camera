@@ -144,16 +144,25 @@ export type MessageKey =
   | "chat.suggestion3"
   | "chat.suggestion4"
   | "chat.needVideo"
-  | "chat.sessionReady"
+  | "chat.batchReady"
   | "video.title"
   | "video.subtitle"
   | "video.upload"
   | "video.record"
   | "video.stop"
   | "video.clear"
+  | "video.clearAll"
   | "video.emptyPreview"
+  | "video.emptyList"
   | "video.framesReady"
   | "video.cameraDenied"
+  | "video.batchHint"
+  | "video.batchReady"
+  | "video.recording"
+  | "video.queued"
+  | "video.extracting"
+  | "video.uploading"
+  | "video.uploadFailed"
   | "inspection.reportTitle"
   | "inspection.downloadPdf"
   | "inspection.question"
@@ -391,11 +400,11 @@ const en: Dict = {
   "violations.severityHigh": "HIGH",
   "violations.severityMedium": "MEDIUM",
   "violations.severityLow": "LOW",
-  "chat.title": "Ask about your video",
+  "chat.title": "Ask about your videos",
   "chat.subtitle":
-    "Record or upload a clip on the left, then describe what you want me to look for — anything visible in the footage.",
-  "chat.needVideo": "Record or upload a video first (left panel), then ask your question here.",
-  "chat.sessionReady": "Clip loaded",
+    "Add videos on the left, then describe what to check — one question produces one combined report with screenshots.",
+  "chat.needVideo": "Add at least one video on the left, then ask your question here.",
+  "chat.batchReady": "Videos loaded",
   "chat.watching": "Watching for:",
   "chat.noRules": "no rules active — click to configure",
   "chat.edit": "edit →",
@@ -408,22 +417,33 @@ const en: Dict = {
     "Analyzing video — this may take a few minutes for long footage…",
   "chat.clear": "Clear chat",
   "chat.clearConfirm": "Clear chat history?",
-  "chat.welcomeTitle": "What should I look for in your clip?",
+  "chat.welcomeTitle": "What should I look for across your videos?",
   "chat.welcomeBody":
-    "I can check for anything you describe — receipts, safety gear, phones, theft, cleanliness, headcount, and more. No fixed rule list required.",
+    "Upload multiple clips (even very long ones), then ask once — I analyze all of them and return one combined report with screenshots.",
   "chat.suggestion1": "Did the cashier hand a printed receipt to the customer?",
   "chat.suggestion2": "Is anyone using a phone behind the counter?",
   "chat.suggestion3": "Describe what each person is wearing and doing.",
   "chat.suggestion4": "Flag anything that looks unsafe or suspicious.",
-  "video.title": "Your clip",
-  "video.subtitle": "Record with your camera or upload a file — analysis runs only when you ask in chat.",
-  "video.upload": "Upload video",
+  "video.title": "Your videos",
+  "video.subtitle":
+    "Upload or record as many clips as you need (up to 10). Ask one question in chat — you get one combined report with screenshots.",
+  "video.upload": "Add videos",
   "video.record": "Record",
   "video.stop": "Stop",
   "video.clear": "Clear clip",
+  "video.clearAll": "Clear all",
   "video.emptyPreview": "Record or upload to begin",
-  "video.framesReady": "frames ready",
+  "video.emptyList": "No videos yet — add files or record a clip.",
+  "video.framesReady": "frames sampled",
   "video.cameraDenied": "Camera access was denied. Allow camera permission or upload a file instead.",
+  "video.batchHint":
+    "Long videos (even 24h) are OK — we sample frames across the full length. Analysis uses up to ~40 frames total across all uploads.",
+  "video.batchReady": "{count} of {max} videos ready",
+  "video.recording": "Recording…",
+  "video.queued": "Queued…",
+  "video.extracting": "Sampling frames…",
+  "video.uploading": "Uploading…",
+  "video.uploadFailed": "Upload failed",
   "inspection.reportTitle": "Video analysis report",
   "inspection.downloadPdf": "Download PDF",
   "inspection.question": "Question",
@@ -684,7 +704,7 @@ const ar: Dict = {
   "chat.subtitle":
     "سجّل أو ارفع مقطعاً من اليسار، ثم صف ما تريد أن أبحث عنه — أي شيء يظهر في اللقطات.",
   "chat.needVideo": "سجّل أو ارفع فيديو أولاً (اللوحة اليسرى)، ثم اكتب سؤالك هنا.",
-  "chat.sessionReady": "المقطع جاهز",
+  "chat.batchReady": "الفيديوهات جاهزة",
   "chat.watching": "نراقب:",
   "chat.noRules": "لا توجد قواعد مفعّلة — اضغط للإعداد",
   "chat.edit": "تعديل ←",
@@ -704,15 +724,26 @@ const ar: Dict = {
   "chat.suggestion2": "هل يستخدم أحد هاتفاً خلف الكاونتر؟",
   "chat.suggestion3": "صف ملابس وحركة كل شخص في المشهد.",
   "chat.suggestion4": "أشر إلى أي شيء يبدو غير آمن أو مريباً.",
-  "video.title": "مقطعك",
-  "video.subtitle": "سجّل بالكاميرا أو ارفع ملفاً — التحليل يعمل فقط عندما تسأل في المحادثة.",
-  "video.upload": "رفع فيديو",
+  "video.title": "فيديوهاتك",
+  "video.subtitle":
+    "ارفع أو سجّل عدة مقاطع (حتى ١٠). اطرح سؤالاً واحداً في المحادثة — تحصل على تقرير موحّد مع لقطات.",
+  "video.upload": "إضافة فيديوهات",
   "video.record": "تسجيل",
   "video.stop": "إيقاف",
   "video.clear": "مسح المقطع",
+  "video.clearAll": "مسح الكل",
   "video.emptyPreview": "سجّل أو ارفع للبدء",
-  "video.framesReady": "إطار جاهز",
+  "video.emptyList": "لا توجد فيديوهات بعد — أضف ملفات أو سجّل مقطعاً.",
+  "video.framesReady": "إطار عيّنة",
   "video.cameraDenied": "تم رفض الوصول للكاميرا. اسمح بالإذن أو ارفع ملفاً.",
+  "video.batchHint":
+    "الفيديوهات الطويلة (حتى ٢٤ ساعة) مقبولة — نأخذ عينات من الإطارات على طول المدة. التحليل يستخدم حتى ~٤٠ إطاراً من جميع الملفات.",
+  "video.batchReady": "{count} من {max} فيديوهات جاهزة",
+  "video.recording": "جارٍ التسجيل…",
+  "video.queued": "في الانتظار…",
+  "video.extracting": "جارٍ أخذ عينات…",
+  "video.uploading": "جارٍ الرفع…",
+  "video.uploadFailed": "فشل الرفع",
   "inspection.reportTitle": "تقرير تحليل الفيديو",
   "inspection.downloadPdf": "تحميل PDF",
   "inspection.question": "السؤال",

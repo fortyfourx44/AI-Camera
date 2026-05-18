@@ -6,6 +6,8 @@ import type {
   ChatMessage,
   VideoSession,
   VideoInspectionReport,
+  VideoBatch,
+  BatchVideoClip,
 } from "./types";
 
 let _db: Database.Database | null = null;
@@ -91,6 +93,13 @@ function getDb(): Database.Database {
       frame_paths TEXT NOT NULL,
       duration_seconds REAL NOT NULL,
       created_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS video_batches (
+      id TEXT PRIMARY KEY,
+      videos_json TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
     );
   `);
 
@@ -298,7 +307,56 @@ export const reportsRepo = {
   },
 };
 
-// ----- Video sessions (on-demand user clips) -----
+// ----- Video batches (multi-clip uploads) -----
+export const videoBatchRepo = {
+  get(id: string): VideoBatch | null {
+    const row = getDb()
+      .prepare("SELECT * FROM video_batches WHERE id = ?")
+      .get(id) as Record<string, unknown> | undefined;
+    if (!row) return null;
+    let videos: BatchVideoClip[] = [];
+    try {
+      videos = JSON.parse((row.videos_json as string) || "[]");
+    } catch {
+      videos = [];
+    }
+    return {
+      id: row.id as string,
+      videos,
+      createdAt: row.created_at as number,
+      updatedAt: row.updated_at as number,
+    };
+  },
+  insert(b: VideoBatch): void {
+    getDb()
+      .prepare(
+        `INSERT INTO video_batches (id, videos_json, created_at, updated_at)
+         VALUES (@id, @videosJson, @createdAt, @updatedAt)`
+      )
+      .run({
+        id: b.id,
+        videosJson: JSON.stringify(b.videos),
+        createdAt: b.createdAt,
+        updatedAt: b.updatedAt,
+      });
+  },
+  update(b: VideoBatch): void {
+    getDb()
+      .prepare(
+        `UPDATE video_batches SET videos_json = @videosJson, updated_at = @updatedAt WHERE id = @id`
+      )
+      .run({
+        id: b.id,
+        videosJson: JSON.stringify(b.videos),
+        updatedAt: b.updatedAt,
+      });
+  },
+  delete(id: string): void {
+    getDb().prepare("DELETE FROM video_batches WHERE id = ?").run(id);
+  },
+};
+
+// ----- Video sessions (legacy single-clip) -----
 export const videoSessionRepo = {
   get(id: string): VideoSession | null {
     const row = getDb()

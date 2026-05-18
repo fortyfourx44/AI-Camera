@@ -87,10 +87,48 @@ export interface ChatMessage {
 
 export type InspectionVerdict = "yes" | "no" | "unclear" | "n/a";
 
+/** Points to one frame in the flattened multi-video frame list. */
+export interface EvidenceRef {
+  videoIndex: number;
+  frameIndex: number;
+}
+
 export interface InspectionFinding {
   heading: string;
   detail: string;
+  /** Flat indices into `framePaths` (legacy / single-video). */
   frameIndices: number[];
+  /** Preferred for multi-video: which video + which frame. */
+  evidenceRefs?: EvidenceRef[];
+}
+
+export interface BatchVideoClip {
+  id: string;
+  name: string;
+  durationSeconds: number;
+  /** Relative paths under screenshots/ */
+  framePaths: string[];
+  /** Wall-clock offset label per frame (e.g. 02:15:30). */
+  frameTimestamps: string[];
+  sortOrder: number;
+  addedAt: number;
+}
+
+export interface VideoBatch {
+  id: string;
+  videos: BatchVideoClip[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Flattened frame for vision API + UI. */
+export interface FlatFrameRef {
+  flatIndex: number;
+  videoIndex: number;
+  videoName: string;
+  frameIndex: number;
+  path: string;
+  timestampLabel: string;
 }
 
 /** Structured AI report returned from video inspection. */
@@ -107,15 +145,20 @@ export interface VideoInspectionReport {
   evidenceFrameIndices: number[];
   limitations: string;
   conclusion: string;
-  /** Snapshot of frame paths at analysis time (for UI + PDF). */
+  /** All frames flattened (video0 frames, then video1, …). */
   framePaths: string[];
+  /** Parallel labels for each flat frame. */
+  frameLabels?: string[];
+  /** Videos included in this analysis. */
+  videos?: Array<{ name: string; durationSeconds: number; frameCount: number }>;
+  /** Multi-video evidence (maps to flat list via batch manifest). */
+  evidenceRefs?: EvidenceRef[];
 }
 
-/** On-demand video the user recorded or uploaded for interactive inspection. */
+/** @deprecated Use VideoBatch — kept for migration. */
 export interface VideoSession {
   id: string;
   name: string;
-  /** Relative paths under screenshots/ (e.g. sessions/uuid/frame-00.jpg). */
   framePaths: string[];
   durationSeconds: number;
   createdAt: number;

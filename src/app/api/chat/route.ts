@@ -2,33 +2,34 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { z } from "zod";
 
-import { chatRepo, reportsRepo, videoSessionRepo } from "@/lib/db";
+import { chatRepo, reportsRepo } from "@/lib/db";
 import {
   chatWithReports,
   inspectVideoFrames,
   isClaudeConfigured,
 } from "@/lib/claude";
 import {
-  getActiveVideoSession,
-  getActiveVideoSessionId,
-  sessionFrameAbsPaths,
-  setActiveVideoSessionId,
-} from "@/lib/video-session";
+  batchSummaryLabel,
+  buildFlatFrameManifest,
+  flatFrameAbsPaths,
+  getActiveVideoBatch,
+  setActiveVideoBatchId,
+} from "@/lib/video-batch";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 const postSchema = z.object({
   message: z.string().min(1).max(4000),
-  sessionId: z.string().uuid().optional(),
 });
 
 export async function GET() {
   try {
     const messages = chatRepo.list(200);
-    const session = getActiveVideoSession();
-    return NextResponse.json({ messages, session });
+    const batch = getActiveVideoBatch();
+    return NextResponse.json({ messages, batch });
   } catch {
-    return NextResponse.json({ messages: [], session: null });
+    return NextResponse.json({ messages: [], batch: null });
   }
 }
 
@@ -48,23 +49,22 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const sessionId =
-    parsed.data.sessionId ?? getActiveVideoSessionId() ?? undefined;
-  let session = sessionId ? videoSessionRepo.get(sessionId) : null;
-  if (sessionId && !session) {
+  const batch = getActiveVideoBatch();
+  if (!batch || batch.videos.length === 0) {
     return NextResponse.json(
-      { error: "Video session not found. Record or upload a clip first." },
+      { error: "Upload at least one video before asking a question." },
       { status: 400 }
     );
   }
-  if (session) setActiveVideoSessionId(session.id);
+
+  setActiveVideoBatchId(batch.id);
 
   const userMsg = {
     id: crypto.randomUUID(),
     role: "user" as const,
     content: parsed.data.message,
     createdAt: Date.now(),
-    videoSessionId: session?.id ?? null,
+    videoSessionId: batch.id,
   };
   chatRepo.insert(userMsg);
 
@@ -73,15 +73,30 @@ export async function POST(req: NextRequest) {
     .filter((m) => m.id !== userMsg.id)
     .map((m) => ({ role: m.role, content: m.content }));
 
+  const manifest = buildFlatFrameManifest(batch);
+  const framePathsRelative = manifest.map((f) => f.path);
+  const frameLabels = manifest.map(
+    (f) =>
+      `Video ${f.videoIndex} "${f.videoName}" @ ${f.timestampLabel} — frame ${f.frameIndex}`
+  );
+  const videosMeta = batch.videos.map((v) => ({
+    name: v.name,
+    durationSeconds: v.durationSeconds,
+    frameCount: v.framePaths.length,
+  }));
+
   let assistantText: string;
   let inspection: import("@/lib/types").VideoInspectionReport | null = null;
   try {
-    if (session && session.framePaths.length > 0) {
+    if (manifest.length > 0) {
       const result = await inspectVideoFrames({
-        framePaths: sessionFrameAbsPaths(session),
-        framePathsRelative: session.framePaths,
+        framePaths: flatFrameAbsPaths(manifest),
+        framePathsRelative,
+        frameLabels,
+        manifest,
         userQuestion: parsed.data.message,
-        videoLabel: session.name,
+        videoLabel: batchSummaryLabel(batch),
+        videosMeta,
         history,
       });
       assistantText = result.content;
@@ -105,7 +120,7 @@ export async function POST(req: NextRequest) {
     role: "assistant" as const,
     content: assistantText,
     createdAt: Date.now(),
-    videoSessionId: session?.id ?? null,
+    videoSessionId: batch.id,
     inspection,
   };
   chatRepo.insert(assistantMsg);
@@ -113,12 +128,11 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     user: userMsg,
     assistant: assistantMsg,
-    session,
+    batch,
   });
 }
 
 export async function DELETE() {
   chatRepo.clear();
-  setActiveVideoSessionId(null);
   return NextResponse.json({ ok: true });
 }

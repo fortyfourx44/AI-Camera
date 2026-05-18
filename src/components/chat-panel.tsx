@@ -19,7 +19,8 @@ import { Badge } from "@/components/ui/badge";
 import { useT } from "@/components/i18n-provider";
 import { cn, formatDateTime } from "@/lib/utils";
 import { InspectionReportCard } from "@/components/inspection-report-card";
-import type { ChatMessage, VideoSession } from "@/lib/types";
+import { batchSummaryLabel } from "@/lib/video-format";
+import type { ChatMessage, VideoBatch } from "@/lib/types";
 
 interface LocalChatMessage extends ChatMessage {
   uploadSummary?: UploadSummary;
@@ -190,11 +191,11 @@ function MarkdownText({ children }: { children: string }) {
 }
 
 export function ChatPanel({
-  session,
-  onSessionChange,
+  batch,
+  onBatchChange,
 }: {
-  session: VideoSession | null;
-  onSessionChange: (s: VideoSession | null) => void;
+  batch: VideoBatch | null;
+  onBatchChange: (b: VideoBatch | null) => void;
 }) {
   const t = useT();
   const SUGGESTIONS = [
@@ -214,10 +215,10 @@ export function ChatPanel({
       .then((r) => r.json())
       .then((d) => {
         setMessages(d.messages || []);
-        if (d.session) onSessionChange(d.session);
+        if (d.batch) onBatchChange(d.batch);
       })
       .catch(() => {});
-  }, [onSessionChange]);
+  }, [onBatchChange]);
 
   React.useEffect(() => {
     scrollerRef.current?.scrollTo({
@@ -234,7 +235,7 @@ export function ChatPanel({
     const text = input.trim();
     if (!text) return;
 
-    if (!session) {
+    if (!batch || batch.videos.length === 0) {
       setMessages((m) => [
         ...m,
         {
@@ -260,10 +261,10 @@ export function ChatPanel({
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, sessionId: session.id }),
+        body: JSON.stringify({ message: text }),
       });
       const data = await res.json();
-      if (data.session) onSessionChange(data.session);
+      if (data.batch) onBatchChange(data.batch);
       if (data.assistant) {
         setMessages((m) => [...m.filter((x) => x.id !== localUser.id), data.user, data.assistant]);
       } else {
@@ -286,7 +287,6 @@ export function ChatPanel({
     if (!confirm(t("chat.clearConfirm"))) return;
     await fetch("/api/chat", { method: "DELETE" });
     setMessages([]);
-    onSessionChange(null);
   }
 
   return (
@@ -308,10 +308,10 @@ export function ChatPanel({
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
-        {session ? (
+        {batch && batch.videos.length > 0 ? (
           <p className="text-xs text-muted-foreground">
-            {t("chat.sessionReady")}:{" "}
-            <span className="font-medium text-foreground">{session.name}</span>
+            {t("chat.batchReady")}:{" "}
+            <span className="font-medium text-foreground">{batchSummaryLabel(batch)}</span>
           </p>
         ) : (
           <p className="text-xs text-warning">{t("chat.needVideo")}</p>

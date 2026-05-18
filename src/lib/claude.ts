@@ -1,7 +1,12 @@
 import Anthropic from "@anthropic-ai/sdk";
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { AnalysisResult, VideoInspectionReport, ViolationReport } from "./types";
+import type {
+  AnalysisResult,
+  FlatFrameRef,
+  VideoInspectionReport,
+  ViolationReport,
+} from "./types";
 import { inspectionToMarkdown, parseInspectionJson } from "./inspection";
 import { COMPLIANCE_PRESETS, getAppSettings, getVideoInspectPrompt } from "./prompts";
 import { getServerLocale } from "./i18n-server";
@@ -215,17 +220,23 @@ function clamp01(n: number) {
 export async function inspectVideoFrames({
   framePaths,
   framePathsRelative,
+  frameLabels,
+  manifest,
   userQuestion,
   videoLabel,
+  videosMeta,
   history,
 }: {
   framePaths: string[];
-  /** Relative paths stored in DB / served via /api/screenshots */
   framePathsRelative: string[];
+  frameLabels: string[];
+  manifest: FlatFrameRef[];
   userQuestion: string;
   videoLabel?: string;
+  videosMeta?: VideoInspectionReport["videos"];
   history: { role: "user" | "assistant"; content: string }[];
 }): Promise<{ inspection: VideoInspectionReport; content: string }> {
+
   if (framePaths.length === 0) {
     const empty: VideoInspectionReport = {
       title: "No frames",
@@ -235,12 +246,15 @@ export async function inspectVideoFrames({
       verdict: "n/a",
       verdictLabel: "N/A",
       confidence: 0,
-      summary: "No frames were extracted from the video. Try recording or uploading again.",
+      summary: "No videos or frames loaded. Upload at least one video first.",
       findings: [],
       evidenceFrameIndices: [],
+      evidenceRefs: [],
       limitations: "",
       conclusion: "",
       framePaths: [],
+      frameLabels: [],
+      videos: videosMeta,
     };
     return { inspection: empty, content: empty.summary };
   }
@@ -248,13 +262,21 @@ export async function inspectVideoFrames({
   const imageBlocks = await Promise.all(framePaths.map(fileToImageBlock));
   const content: Anthropic.ContentBlockParam[] = [];
   imageBlocks.forEach((img, i) => {
-    content.push({ type: "text", text: `Frame ${i}:` });
+    content.push({
+      type: "text",
+      text: frameLabels[i] || `Frame ${i}:`,
+    });
     content.push(img);
   });
-  const label = videoLabel ? `Video: "${videoLabel}"\n\n` : "";
+  const videoList =
+    videosMeta && videosMeta.length > 0
+      ? `\nVideos in this batch (${videosMeta.length}):\n${videosMeta
+          .map((v, i) => `- Video ${i}: ${v.name} (${Math.round(v.durationSeconds)}s, ${v.frameCount} samples)`)
+          .join("\n")}\n`
+      : "";
   content.push({
     type: "text",
-    text: `${label}End of frames.\n\nUser question:\n${userQuestion}`,
+    text: `${videoList}\nEnd of all sampled frames.\n\nUser question:\n${userQuestion}`,
   });
 
   const locale = await getServerLocale();
@@ -302,6 +324,9 @@ export async function inspectVideoFrames({
     userQuestion,
     videoName: videoLabel || "Video clip",
     framePaths: framePathsRelative,
+    frameLabels,
+    manifest,
+    videos: videosMeta,
     analyzedAt: Date.now(),
   });
 

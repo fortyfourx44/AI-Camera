@@ -9,7 +9,8 @@ import { isClaudeConfigured } from "@/lib/claude";
 import { RECORDINGS_DIR, ensureDirs } from "@/lib/paths";
 
 export const runtime = "nodejs";
-export const maxDuration = 600;
+/** Hobby plan max is 60s; raise in vercel.json on Pro if needed. */
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   if (!isClaudeConfigured()) {

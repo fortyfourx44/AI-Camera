@@ -78,14 +78,11 @@ export async function downloadInspectionPdf(
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(80, 80, 80);
-  y = wrapText(
-    doc,
-    `${labels.video}: ${report.videoName}\n${labels.question}: ${report.userQuestion}\n${labels.analyzedAt}: ${new Date(report.analyzedAt).toLocaleString()}`,
-    margin,
-    y,
-    maxW,
-    4
-  );
+  let meta = `${labels.video}: ${report.videoName}\n${labels.question}: ${report.userQuestion}\n${labels.analyzedAt}: ${new Date(report.analyzedAt).toLocaleString()}`;
+  if (report.videos && report.videos.length > 1) {
+    meta += `\n\n${report.videos.map((v, i) => `${i + 1}. ${v.name} (${Math.round(v.durationSeconds / 60)}m)`).join("\n")}`;
+  }
+  y = wrapText(doc, meta, margin, y, maxW, 4);
   y += 4;
   doc.setTextColor(0, 0, 0);
 
@@ -121,10 +118,15 @@ export async function downloadInspectionPdf(
     for (let i = 0; i < report.findings.length; i++) {
       const f = report.findings[i];
       addPageIfNeeded(14);
-      const frameNote =
-        f.frameIndices.length > 0
-          ? ` [${labels.frame} ${f.frameIndices.join(", ")}]`
-          : "";
+      let frameNote = "";
+      if (f.evidenceRefs?.length) {
+        frameNote = ` [${f.evidenceRefs.map((e) => `V${e.videoIndex + 1}#${e.frameIndex}`).join(", ")}]`;
+      } else if (f.frameIndices.length > 0) {
+        const cites = f.frameIndices.map(
+          (i) => report.frameLabels?.[i] || `${labels.frame} ${i}`
+        );
+        frameNote = ` [${cites.join("; ")}]`;
+      }
       y = wrapText(
         doc,
         `${i + 1}. ${f.heading}: ${f.detail}${frameNote}`,
@@ -162,7 +164,9 @@ export async function downloadInspectionPdf(
       const img = await loadImageDataUrl(screenshotUrl(rel));
       const x = margin + col * (colW + 4);
       doc.setFontSize(8);
-      doc.text(`${labels.frame} #${idx}`, x, y);
+      const cap = report.frameLabels?.[idx] || `${labels.frame} #${idx}`;
+      const capLines = doc.splitTextToSize(cap, colW);
+      doc.text(capLines, x, y);
       if (img) {
         const ratio = img.w / img.h;
         let w = colW;

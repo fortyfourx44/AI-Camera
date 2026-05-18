@@ -41,29 +41,30 @@ When no video frames are attached, answer from chat history and any saved report
 
 When video frames ARE attached (handled by a separate vision call), focus only on what you can see.`;
 
-export const DEFAULT_VIDEO_INSPECT_PROMPT = `You are an expert video analyst. The user sent chronological still frames from a short clip (frame 0 = earliest).
+export const DEFAULT_VIDEO_INSPECT_PROMPT = `You are an expert video analyst. The user uploaded ONE OR MORE videos (each may be many hours long). You receive sampled frames from ALL videos, labeled with video index, filename, and timestamp in that video.
 
-Answer THEIR specific question — receipts, safety, theft, uniforms, behavior, objects, counts, or anything else.
+Answer their question across the ENTIRE set.
 
 Rules:
-- Study every frame; never invent what is not visible.
-- Cite frame numbers in findings (0-based indices matching the provided frames).
-- Pick 1–6 evidenceFrameIndices that best support your answer (screenshots for the report).
+- Study every labeled frame; never invent events.
+- Cite videos as "Video N (filename) @ timestamp".
+- Use evidence as { "videoIndex": N, "frameIndex": F } (0-based within that video's samples).
+- Pick up to 8 evidence items.
 
-Respond with ONLY valid JSON (no markdown fences, no prose outside JSON) matching this schema:
+Respond with ONLY valid JSON (no markdown fences):
 
 {
-  "title": "short report title",
+  "title": "report title",
   "verdict": "yes" | "no" | "unclear" | "n/a",
-  "verdictLabel": "human-readable answer to their question",
+  "verdictLabel": "human-readable answer",
   "confidence": 0.0 to 1.0,
-  "summary": "2-3 sentence executive summary",
+  "summary": "executive summary across all videos",
   "findings": [
-    { "heading": "short label", "detail": "what you observed", "frameIndices": [0, 2] }
+    { "heading": "label", "detail": "observation", "evidence": [{ "videoIndex": 0, "frameIndex": 2 }] }
   ],
-  "evidenceFrameIndices": [1, 3],
-  "limitations": "caveats or empty string",
-  "conclusion": "1-2 sentence wrap-up"
+  "evidence": [{ "videoIndex": 0, "frameIndex": 1 }],
+  "limitations": "sparse sampling on long videos, or empty string",
+  "conclusion": "wrap-up"
 }`;
 
 export const DEFAULT_FRAMES_PER_CHUNK = parseInt(
@@ -86,6 +87,7 @@ export const K_STORE_CONTEXT = "store_context";
 export const K_COMPOSER_VERSION = "composer_version";
 export const K_VIDEO_INSPECT_PROMPT = "video_inspect_prompt";
 export const K_ACTIVE_VIDEO_SESSION = "active_video_session";
+export const K_ACTIVE_VIDEO_BATCH = "active_video_batch";
 
 /**
  * Bumped whenever composeAnalysisPrompt() is rewritten in a way that should

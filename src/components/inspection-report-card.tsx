@@ -17,6 +17,17 @@ function screenshotUrl(relative: string): string {
   return `/api/screenshots/${sub.map(encodeURIComponent).join("/")}`;
 }
 
+function frameCaption(report: VideoInspectionReport, idx: number): string {
+  const label = report.frameLabels?.[idx];
+  if (label) return label;
+  const ref = report.evidenceRefs?.find((_, i) => report.evidenceFrameIndices[i] === idx);
+  if (ref) {
+    const v = report.videos?.[ref.videoIndex];
+    return v ? `${v.name} · frame ${ref.frameIndex}` : `Video ${ref.videoIndex + 1}`;
+  }
+  return `#${idx}`;
+}
+
 function verdictVariant(
   v: VideoInspectionReport["verdict"]
 ): "success" | "destructive" | "warning" | "secondary" {
@@ -76,6 +87,16 @@ export function InspectionReportCard({ report }: { report: VideoInspectionReport
           <p className="text-[11px] text-muted-foreground">
             {report.videoName} · {new Date(report.analyzedAt).toLocaleString()}
           </p>
+          {report.videos && report.videos.length > 1 && (
+            <ul className="mt-1 space-y-0.5 text-[11px] text-muted-foreground">
+              {report.videos.map((v, i) => (
+                <li key={`${v.name}-${i}`}>
+                  {i + 1}. {v.name} ({Math.round(v.durationSeconds / 60)}m, {v.frameCount}{" "}
+                  {t("video.framesReady")})
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
         <Button
           type="button"
@@ -128,9 +149,18 @@ export function InspectionReportCard({ report }: { report: VideoInspectionReport
               >
                 <p className="font-medium">{f.heading}</p>
                 <p className="mt-0.5 text-muted-foreground">{f.detail}</p>
-                {f.frameIndices.length > 0 && (
-                  <p className="mt-1 font-mono text-[10px] text-muted-foreground">
-                    {t("inspection.frame")} {f.frameIndices.join(", ")}
+                {(f.evidenceRefs?.length || f.frameIndices.length > 0) && (
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    {f.evidenceRefs?.length
+                      ? f.evidenceRefs
+                          .map((e) => {
+                            const v = report.videos?.[e.videoIndex];
+                            return v
+                              ? `${v.name} · frame ${e.frameIndex}`
+                              : `Video ${e.videoIndex + 1} · frame ${e.frameIndex}`;
+                          })
+                          .join("; ")
+                      : f.frameIndices.map((i) => frameCaption(report, i)).join("; ")}
                   </p>
                 )}
               </li>
@@ -164,8 +194,8 @@ export function InspectionReportCard({ report }: { report: VideoInspectionReport
                     alt={`${t("inspection.frame")} ${idx}`}
                     className="aspect-video w-full object-cover transition-transform group-hover:scale-[1.02]"
                   />
-                  <span className="absolute start-1.5 top-1.5 rounded bg-black/75 px-1.5 py-0.5 font-mono text-[10px] text-white">
-                    #{idx}
+                  <span className="absolute start-1.5 top-1.5 end-1.5 rounded bg-black/75 px-1.5 py-0.5 text-[9px] leading-tight text-white">
+                    {frameCaption(report, idx)}
                   </span>
                 </a>
               );
