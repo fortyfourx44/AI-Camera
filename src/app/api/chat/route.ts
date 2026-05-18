@@ -74,14 +74,18 @@ export async function POST(req: NextRequest) {
     .map((m) => ({ role: m.role, content: m.content }));
 
   let assistantText: string;
+  let inspection: import("@/lib/types").VideoInspectionReport | null = null;
   try {
     if (session && session.framePaths.length > 0) {
-      assistantText = await inspectVideoFrames({
+      const result = await inspectVideoFrames({
         framePaths: sessionFrameAbsPaths(session),
+        framePathsRelative: session.framePaths,
         userQuestion: parsed.data.message,
         videoLabel: session.name,
         history,
       });
+      assistantText = result.content;
+      inspection = result.inspection;
     } else {
       const reports = reportsRepo.list(50);
       assistantText = await chatWithReports({
@@ -102,6 +106,7 @@ export async function POST(req: NextRequest) {
     content: assistantText,
     createdAt: Date.now(),
     videoSessionId: session?.id ?? null,
+    inspection,
   };
   chatRepo.insert(assistantMsg);
 

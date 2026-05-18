@@ -18,10 +18,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { useT } from "@/components/i18n-provider";
 import { cn, formatDateTime } from "@/lib/utils";
+import { InspectionReportCard } from "@/components/inspection-report-card";
 import type { ChatMessage, VideoSession } from "@/lib/types";
 
 interface LocalChatMessage extends ChatMessage {
   uploadSummary?: UploadSummary;
+  inspection?: ChatMessage["inspection"];
 }
 
 interface UploadOutcome {
@@ -408,21 +410,25 @@ function Message({ message }: { message: LocalChatMessage }) {
       </div>
       <div
         className={cn(
-          "max-w-[85%] space-y-2",
+          "max-w-[95%] space-y-2 sm:max-w-[90%]",
           isUser && "items-end text-right"
         )}
       >
-        <div
-          className={cn(
-            "inline-block rounded-2xl px-4 py-2 text-sm leading-relaxed",
-            "whitespace-normal break-words [&_strong]:font-semibold",
-            isUser
-              ? "rounded-br-md bg-primary text-primary-foreground"
-              : "rounded-bl-md bg-muted text-foreground"
-          )}
-        >
-          <MarkdownText>{message.content}</MarkdownText>
-        </div>
+        {isUser || !message.inspection ? (
+          <div
+            className={cn(
+              "inline-block rounded-2xl px-4 py-2 text-sm leading-relaxed",
+              "whitespace-normal break-words [&_strong]:font-semibold",
+              isUser
+                ? "rounded-br-md bg-primary text-primary-foreground"
+                : "rounded-bl-md bg-muted text-foreground"
+            )}
+          >
+            <MarkdownText>{message.content}</MarkdownText>
+          </div>
+        ) : null}
+
+        {message.inspection && <InspectionReportCard report={message.inspection} />}
 
         {summary && <UploadSummaryCard summary={summary} />}
 

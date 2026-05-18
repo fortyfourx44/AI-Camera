@@ -1,7 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { AnalysisResult, ViolationReport } from "./types";
+import type { AnalysisResult, VideoInspectionReport, ViolationReport } from "./types";
+import { inspectionToMarkdown, parseInspectionJson } from "./inspection";
 import { COMPLIANCE_PRESETS, getAppSettings, getVideoInspectPrompt } from "./prompts";
 import { getServerLocale } from "./i18n-server";
 import type { Locale } from "./i18n";
@@ -213,17 +214,35 @@ function clamp01(n: number) {
 
 export async function inspectVideoFrames({
   framePaths,
+  framePathsRelative,
   userQuestion,
   videoLabel,
   history,
 }: {
   framePaths: string[];
+  /** Relative paths stored in DB / served via /api/screenshots */
+  framePathsRelative: string[];
   userQuestion: string;
   videoLabel?: string;
   history: { role: "user" | "assistant"; content: string }[];
-}): Promise<string> {
+}): Promise<{ inspection: VideoInspectionReport; content: string }> {
   if (framePaths.length === 0) {
-    return "No frames were extracted from the video. Try recording or uploading again.";
+    const empty: VideoInspectionReport = {
+      title: "No frames",
+      userQuestion,
+      videoName: videoLabel || "Video",
+      analyzedAt: Date.now(),
+      verdict: "n/a",
+      verdictLabel: "N/A",
+      confidence: 0,
+      summary: "No frames were extracted from the video. Try recording or uploading again.",
+      findings: [],
+      evidenceFrameIndices: [],
+      limitations: "",
+      conclusion: "",
+      framePaths: [],
+    };
+    return { inspection: empty, content: empty.summary };
   }
 
   const imageBlocks = await Promise.all(framePaths.map(fileToImageBlock));
@@ -273,11 +292,20 @@ export async function inspectVideoFrames({
     messages: [...prior, { role: "user", content }],
   });
 
-  return response.content
+  const raw = response.content
     .filter((b): b is Anthropic.TextBlock => b.type === "text")
     .map((b) => b.text)
     .join("\n")
     .trim();
+
+  const inspection = parseInspectionJson(raw, {
+    userQuestion,
+    videoName: videoLabel || "Video clip",
+    framePaths: framePathsRelative,
+    analyzedAt: Date.now(),
+  });
+
+  return { inspection, content: inspectionToMarkdown(inspection) };
 }
 
 // ---- Chat over reports (RAG-lite: include report metadata in the prompt) ----

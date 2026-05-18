@@ -154,6 +154,19 @@ export type MessageKey =
   | "video.emptyPreview"
   | "video.framesReady"
   | "video.cameraDenied"
+  | "inspection.reportTitle"
+  | "inspection.downloadPdf"
+  | "inspection.question"
+  | "inspection.video"
+  | "inspection.analyzedAt"
+  | "inspection.verdict"
+  | "inspection.confidence"
+  | "inspection.summary"
+  | "inspection.findings"
+  | "inspection.evidence"
+  | "inspection.limitations"
+  | "inspection.conclusion"
+  | "inspection.frame"
   | "chat.verdictNoActivity"
   | "chat.verdictCompliant"
   | "chat.verdictViolation"
@@ -411,6 +424,19 @@ const en: Dict = {
   "video.emptyPreview": "Record or upload to begin",
   "video.framesReady": "frames ready",
   "video.cameraDenied": "Camera access was denied. Allow camera permission or upload a file instead.",
+  "inspection.reportTitle": "Video analysis report",
+  "inspection.downloadPdf": "Download PDF",
+  "inspection.question": "Question",
+  "inspection.video": "Video",
+  "inspection.analyzedAt": "Analyzed",
+  "inspection.verdict": "Verdict",
+  "inspection.confidence": "Confidence",
+  "inspection.summary": "Summary",
+  "inspection.findings": "Findings",
+  "inspection.evidence": "Evidence screenshots",
+  "inspection.limitations": "Limitations",
+  "inspection.conclusion": "Conclusion",
+  "inspection.frame": "Frame",
   "chat.verdictNoActivity": "No activity",
   "chat.verdictCompliant": "Compliant",
   "chat.verdictViolation": "Violation",
@@ -687,6 +713,19 @@ const ar: Dict = {
   "video.emptyPreview": "سجّل أو ارفع للبدء",
   "video.framesReady": "إطار جاهز",
   "video.cameraDenied": "تم رفض الوصول للكاميرا. اسمح بالإذن أو ارفع ملفاً.",
+  "inspection.reportTitle": "تقرير تحليل الفيديو",
+  "inspection.downloadPdf": "تحميل PDF",
+  "inspection.question": "السؤال",
+  "inspection.video": "الفيديو",
+  "inspection.analyzedAt": "تاريخ التحليل",
+  "inspection.verdict": "الحكم",
+  "inspection.confidence": "الثقة",
+  "inspection.summary": "الملخص",
+  "inspection.findings": "الملاحظات",
+  "inspection.evidence": "لقطات الدليل",
+  "inspection.limitations": "قيود",
+  "inspection.conclusion": "الخلاصة",
+  "inspection.frame": "إطار",
   "chat.verdictNoActivity": "لا نشاط",
   "chat.verdictCompliant": "مطابق",
   "chat.verdictViolation": "مخالفة",

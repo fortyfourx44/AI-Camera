@@ -81,6 +81,34 @@ export interface ChatMessage {
   reportRefs?: string[];
   /** When set, this turn used vision on a stored video session. */
   videoSessionId?: string | null;
+  /** Structured vision analysis (assistant messages). */
+  inspection?: VideoInspectionReport | null;
+}
+
+export type InspectionVerdict = "yes" | "no" | "unclear" | "n/a";
+
+export interface InspectionFinding {
+  heading: string;
+  detail: string;
+  frameIndices: number[];
+}
+
+/** Structured AI report returned from video inspection. */
+export interface VideoInspectionReport {
+  title: string;
+  userQuestion: string;
+  videoName: string;
+  analyzedAt: number;
+  verdict: InspectionVerdict;
+  verdictLabel: string;
+  confidence: number;
+  summary: string;
+  findings: InspectionFinding[];
+  evidenceFrameIndices: number[];
+  limitations: string;
+  conclusion: string;
+  /** Snapshot of frame paths at analysis time (for UI + PDF). */
+  framePaths: string[];
 }
 
 /** On-demand video the user recorded or uploaded for interactive inspection. */

@@ -1,6 +1,12 @@
 import Database from "better-sqlite3";
 import { DB_PATH, ensureDirs } from "./paths";
-import type { CameraStream, ViolationReport, ChatMessage, VideoSession } from "./types";
+import type {
+  CameraStream,
+  ViolationReport,
+  ChatMessage,
+  VideoSession,
+  VideoInspectionReport,
+} from "./types";
 
 let _db: Database.Database | null = null;
 let _dbInitError: string | null = null;
@@ -114,6 +120,9 @@ function getDb(): Database.Database {
   if (!chatCols.some((c) => c.name === "video_session_id")) {
     _db.exec("ALTER TABLE chat_messages ADD COLUMN video_session_id TEXT");
   }
+  if (!chatCols.some((c) => c.name === "inspection_json")) {
+    _db.exec("ALTER TABLE chat_messages ADD COLUMN inspection_json TEXT");
+  }
 
   // Startup sanity: no stream can actually be in an active state right now —
   // the process just booted and no poller / ffmpeg child has been spawned yet.
@@ -188,6 +197,14 @@ function rowToReport(row: Record<string, unknown>): ViolationReport {
 }
 
 function rowToChat(row: Record<string, unknown>): ChatMessage {
+  let inspection: VideoInspectionReport | null = null;
+  try {
+    if (row.inspection_json) {
+      inspection = JSON.parse(row.inspection_json as string) as VideoInspectionReport;
+    }
+  } catch {
+    inspection = null;
+  }
   return {
     id: row.id as string,
     role: row.role as "user" | "assistant",
@@ -195,6 +212,7 @@ function rowToChat(row: Record<string, unknown>): ChatMessage {
     createdAt: row.created_at as number,
     reportRefs: row.report_refs ? JSON.parse(row.report_refs as string) : undefined,
     videoSessionId: (row.video_session_id as string | null) ?? null,
+    inspection,
   };
 }
 
@@ -328,13 +346,14 @@ export const chatRepo = {
   insert(m: ChatMessage): void {
     getDb()
       .prepare(
-        `INSERT INTO chat_messages (id, role, content, created_at, report_refs, video_session_id)
-         VALUES (@id, @role, @content, @createdAt, @reportRefsJson, @videoSessionId)`
+        `INSERT INTO chat_messages (id, role, content, created_at, report_refs, video_session_id, inspection_json)
+         VALUES (@id, @role, @content, @createdAt, @reportRefsJson, @videoSessionId, @inspectionJson)`
       )
       .run({
         ...m,
         reportRefsJson: m.reportRefs ? JSON.stringify(m.reportRefs) : null,
         videoSessionId: m.videoSessionId ?? null,
+        inspectionJson: m.inspection ? JSON.stringify(m.inspection) : null,
       });
   },
   clear(): void {
