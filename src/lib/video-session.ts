@@ -3,7 +3,12 @@ import path from "node:path";
 import crypto from "node:crypto";
 
 import { settingsRepo, videoSessionRepo } from "./db";
-import { SCREENSHOTS_DIR, ensureDirs } from "./paths";
+import {
+  SCREENSHOTS_DIR,
+  ensureDirs,
+  resolveScreenshotPath,
+  toStoredScreenshotPath,
+} from "./paths";
 import { K_ACTIVE_VIDEO_SESSION } from "./prompts";
 import type { VideoSession } from "./types";
 
@@ -24,7 +29,11 @@ export function getActiveVideoSession(): VideoSession | null {
 
 /** Absolute paths for frames stored in a session. */
 export function sessionFrameAbsPaths(session: VideoSession): string[] {
-  return session.framePaths.map((rel) => path.join(process.cwd(), rel));
+  return session.framePaths.map((rel) => {
+    const abs = resolveScreenshotPath(rel);
+    if (!abs) throw new Error(`Invalid frame path: ${rel}`);
+    return abs;
+  });
 }
 
 export async function createVideoSessionFromUploads({
@@ -48,7 +57,7 @@ export async function createVideoSessionFromUploads({
     const filename = `frame-${String(i).padStart(3, "0")}${ext}`;
     const abs = path.join(sessionDir, filename);
     await fs.writeFile(abs, frame.buffer);
-    framePaths.push(path.relative(process.cwd(), abs));
+    framePaths.push(toStoredScreenshotPath(abs));
     i++;
   }
 

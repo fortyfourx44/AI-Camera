@@ -12,7 +12,10 @@ export function isVercel(): boolean {
  * Use a VPS/Docker host for 24/7 RTSP ingestion.
  */
 export function isServerlessDeployment(): boolean {
-  return isVercel();
+  if (isVercel()) return true;
+  // Fallback when VERCEL is unset but we're on Lambda (read-only /var/task).
+  const cwd = process.cwd();
+  return cwd === "/var/task" || cwd.startsWith("/var/task/");
 }
 
 export type DeploymentMode = "serverless" | "standalone";

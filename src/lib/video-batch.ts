@@ -3,7 +3,12 @@ import path from "node:path";
 import crypto from "node:crypto";
 
 import { settingsRepo, videoBatchRepo } from "./db";
-import { SCREENSHOTS_DIR, ensureDirs } from "./paths";
+import {
+  SCREENSHOTS_DIR,
+  ensureDirs,
+  resolveScreenshotPath,
+  toStoredScreenshotPath,
+} from "./paths";
 import { K_ACTIVE_VIDEO_BATCH } from "./prompts";
 import type { BatchVideoClip, FlatFrameRef, VideoBatch } from "./types";
 import { formatDuration, formatOffset } from "./video-format";
@@ -70,7 +75,7 @@ export async function addClipToBatch({
     const filename = `frame-${String(i).padStart(3, "0")}${ext}`;
     const abs = path.join(clipDir, filename);
     await fs.writeFile(abs, frames[i].buffer);
-    framePaths.push(path.relative(process.cwd(), abs));
+    framePaths.push(toStoredScreenshotPath(abs));
   }
 
   const clip: BatchVideoClip = {
@@ -129,7 +134,11 @@ export function buildFlatFrameManifest(batch: VideoBatch): FlatFrameRef[] {
 }
 
 export function flatFrameAbsPaths(manifest: FlatFrameRef[]): string[] {
-  return manifest.map((f) => path.join(process.cwd(), f.path));
+  return manifest.map((f) => {
+    const abs = resolveScreenshotPath(f.path);
+    if (!abs) throw new Error(`Invalid frame path: ${f.path}`);
+    return abs;
+  });
 }
 
 export function evidenceRefToFlatIndex(
